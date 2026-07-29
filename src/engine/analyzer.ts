@@ -2,10 +2,23 @@ import { resolveEngine, createWorker, readLine } from './stockfish.worker';
 import {
   parseInfoLine,
   isBestmove,
+  parseBestmove,
   normalizeToWhite,
   type RawPvLine,
 } from './uci';
 import type { Analysis, PvLine } from './types';
+
+export interface PlayOptions {
+  fen: string;
+  /** Stockfish Skill Level 0-20 (20 = full strength). */
+  skill?: number;
+  /** Cap the engine to roughly this Elo (uses UCI_LimitStrength). */
+  elo?: number;
+  /** Think for this many ms. */
+  movetime?: number;
+  /** Or search to this depth (ignored if movetime is set). */
+  depth?: number;
+}
 
 export interface AnalyzeOptions {
   fen: string;
@@ -195,6 +208,69 @@ export class Engine {
 
       softTimer = setTimeout(() => this.send('stop'), softMs);
       hardTimer = setTimeout(finalize, hardMs);
+    });
+  }
+
+  /**
+   * Return the move the engine chooses to PLAY from a position (the `bestmove`
+   * token, which reflects the Skill Level weakening — unlike analyze(), which
+   * reports its best-line analysis). Returns UCI, or null if it produced none.
+   */
+  play(options: PlayOptions): Promise<string | null> {
+    const run = () => this.runPlay(options);
+    const result = this.queue.then(run, run);
+    this.queue = result.then(
+      () => undefined,
+      () => undefined
+    );
+    return result;
+  }
+
+  private async runPlay(options: PlayOptions): Promise<string | null> {
+    await this.init();
+    const worker = this.worker;
+    if (!worker) throw new Error('Engine not initialized');
+    const { fen, skill, elo, movetime, depth } = options;
+
+    return new Promise<string | null>((resolve, reject) => {
+      this.currentReject = reject;
+      let soft: ReturnType<typeof setTimeout>;
+      let hard: ReturnType<typeof setTimeout>;
+
+      const cleanup = () => {
+        clearTimeout(soft);
+        clearTimeout(hard);
+        worker.removeEventListener('message', onMsg);
+        this.currentReject = null;
+      };
+
+      const onMsg = (ev: MessageEvent) => {
+        const line = readLine(ev.data);
+        if (!line) return;
+        if (isBestmove(line)) {
+          cleanup();
+          resolve(parseBestmove(line));
+        }
+      };
+
+      worker.addEventListener('message', onMsg);
+      if (skill != null) this.send(`setoption name Skill Level value ${skill}`);
+      if (elo != null) {
+        this.send('setoption name UCI_LimitStrength value true');
+        this.send(`setoption name UCI_Elo value ${elo}`);
+      } else {
+        this.send('setoption name UCI_LimitStrength value false');
+      }
+      this.send('setoption name MultiPV value 1');
+      this.send(`position fen ${fen}`);
+      this.send(movetime ? `go movetime ${movetime}` : `go depth ${depth ?? 12}`);
+
+      const budget = movetime ?? 3000;
+      soft = setTimeout(() => this.send('stop'), budget + 3000);
+      hard = setTimeout(() => {
+        cleanup();
+        resolve(null);
+      }, budget + 8000);
     });
   }
 

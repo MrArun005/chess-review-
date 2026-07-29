@@ -37,7 +37,7 @@ FEN + played move + engine PV
 | `src/engine/` | Stockfish (WASM) in a worker, promise-wrapped `analyze(fen, depth, multipv)`, UCI parsing, IndexedDB cache |
 | `src/review/` | PGN → per-ply pipeline, win% math, move classification, game accuracy, opening detection, game import |
 | `src/brain/` | The fact extractor: geometric motif detectors, positional feature diff, the rule DSL, template rendering |
-| `src/ui/` | Board, eval bar, eval graph, move list, move-detail panel, summary, key moments, **drag-to-explore** (try your own move and get the engine's reply), and **move sounds** (Web Audio, with a mute toggle) |
+| `src/ui/` | Board, eval bar, eval graph, move list, move-detail panel, summary, key moments, **drag-to-explore** (try your own move and get the engine's reply), **Play vs Engine** (Stockfish with adjustable strength, hint/takeback/flip, then review the game), and **move sounds** (Web Audio, with a mute toggle) |
 | `eval/` | Hand-labelled positions + a metrics harness for motif coverage |
 
 ### Core ideas worth knowing

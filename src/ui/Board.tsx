@@ -13,6 +13,7 @@ interface Props {
   playedTo?: string;
   playedClass?: MoveClass;
   boardWidth: number;
+  boardOrientation?: 'white' | 'black';
   onPieceDrop?: (from: string, to: string) => boolean;
 }
 
@@ -23,6 +24,7 @@ export function Board({
   playedTo,
   playedClass,
   boardWidth,
+  boardOrientation = 'white',
   onPieceDrop,
 }: Props) {
   const arrows: [string, string, string][] = [];
@@ -39,6 +41,7 @@ export function Board({
     <Chessboard
       position={fen}
       boardWidth={boardWidth}
+      boardOrientation={boardOrientation}
       customArrows={arrows as Arrows}
       customSquareStyles={squareStyles}
       arePiecesDraggable={Boolean(onPieceDrop)}

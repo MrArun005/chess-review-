@@ -136,6 +136,55 @@ a {
   flex-wrap: wrap;
 }
 
+/* ---------- segmented nav ---------- */
+.segmented {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-2);
+  padding: 4px;
+  border-radius: 10px;
+}
+.segmented button {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  border-radius: 7px;
+  padding: 6px 16px;
+  font-weight: 600;
+}
+.segmented button.active {
+  background: var(--surface-2);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ---------- play mode ---------- */
+.play-controls {
+  display: grid;
+  gap: 10px;
+}
+.play-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.play-controls select {
+  width: 100%;
+}
+.play-moves {
+  font-family: 'SF Mono', ui-monospace, monospace;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--muted);
+  max-height: 220px;
+  overflow: auto;
+  word-spacing: 2px;
+}
+
 /* ---------- intake ---------- */
 .intake {
   display: grid;

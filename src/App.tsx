@@ -8,6 +8,7 @@ import { MoveDetail } from './ui/MoveDetail';
 import { Summary } from './ui/Summary';
 import { KeyMoments } from './ui/KeyMoments';
 import { EngineLines } from './ui/EngineLines';
+import { PlayMode } from './ui/PlayMode';
 import { sound } from './ui/sound';
 import { useExplore } from './ui/useExplore';
 import { useAnalysisEngine } from './ui/useAnalysisEngine';
@@ -27,6 +28,7 @@ export function App() {
   const [pgn, setPgn] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [shareFallback, setShareFallback] = useState<string | null>(null);
+  const [mode, setMode] = useState<'review' | 'play'>('review');
   const boardCol = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const prevPly = useRef<number>(-2);
@@ -185,21 +187,43 @@ export function App() {
             explanations. No backend, no login, no limits.
           </p>
         </div>
-        {result && (
-          <div className="toolbar">
-            <button onClick={reset}>← New game</button>
-            <button onClick={toggleMute}>{muted ? '🔇 Sound' : '🔊 Sound'}</button>
-            <button onClick={copyLink} disabled={!pgn}>
-              {copied ? '✓ Copied' : '🔗 Share'}
+        <div className="toolbar">
+          <div className="segmented">
+            <button
+              className={mode === 'review' ? 'active' : ''}
+              onClick={() => setMode('review')}
+            >
+              Review
             </button>
-            <button onClick={() => exportSummaryPng(result)}>🖼 Export</button>
+            <button className={mode === 'play' ? 'active' : ''} onClick={() => setMode('play')}>
+              Play
+            </button>
           </div>
-        )}
+          {mode === 'review' && result && (
+            <>
+              <button onClick={reset}>← New game</button>
+              <button onClick={toggleMute}>{muted ? '🔇 Sound' : '🔊 Sound'}</button>
+              <button onClick={copyLink} disabled={!pgn}>
+                {copied ? '✓ Copied' : '🔗 Share'}
+              </button>
+              <button onClick={() => exportSummaryPng(result)}>🖼 Export</button>
+            </>
+          )}
+        </div>
       </div>
 
-      {!result && !reviewing && <Intake onPgn={startReview} />}
+      {mode === 'play' && (
+        <PlayMode
+          onReview={(p) => {
+            setMode('review');
+            void startReview(p);
+          }}
+        />
+      )}
 
-      {reviewing && (
+      {mode === 'review' && !result && !reviewing && <Intake onPgn={startReview} />}
+
+      {mode === 'review' && reviewing && (
         <div className="intake">
           <p>Analyzing…</p>
           {progress && (
@@ -221,14 +245,14 @@ export function App() {
         </div>
       )}
 
-      {error && !reviewing && (
+      {mode === 'review' && error && !reviewing && (
         <div className="intake">
           <div className="error">{error}</div>
           <button onClick={reset}>Back</button>
         </div>
       )}
 
-      {result && (
+      {mode === 'review' && result && (
         <>
           {shareFallback && (
             <div className="share-fallback">
