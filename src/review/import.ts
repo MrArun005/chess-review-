@@ -1,7 +1,7 @@
 import { Chess } from 'chess.js';
 
 export interface GameSummary {
-  source: 'chess.com' | 'lichess';
+  source: 'chess.com' | 'lichess' | 'pgn';
   white: string;
   black: string;
   whiteRating?: string;

@@ -2,6 +2,8 @@ import { useState } from 'react';
 import {
   fetchChessComGames,
   fetchLichessGames,
+  splitPgns,
+  summarize,
   type GameSummary,
 } from '../review/import';
 
@@ -22,8 +24,19 @@ export function Intake({ onPgn }: Props) {
   const [site, setSite] = useState<'chess.com' | 'lichess'>('chess.com');
   const [username, setUsername] = useState('');
   const [games, setGames] = useState<GameSummary[]>([]);
+  const [pastedGames, setPastedGames] = useState<GameSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const reviewPasted = () => {
+    // A paste can contain several games — split and let the user pick.
+    const list = splitPgns(pgn);
+    if (list.length > 1) {
+      setPastedGames(list.map((g) => summarize(g, 'pgn')));
+    } else {
+      onPgn(pgn);
+    }
+  };
 
   const loadGames = async () => {
     if (!username.trim()) return;
@@ -65,20 +78,38 @@ export function Intake({ onPgn }: Props) {
         <>
           <textarea
             value={pgn}
-            onChange={(e) => setPgn(e.target.value)}
+            onChange={(e) => {
+              setPgn(e.target.value);
+              setPastedGames([]);
+            }}
             placeholder="Paste a PGN here…"
             spellCheck={false}
           />
           <div className="row">
-            <button
-              className="primary"
-              disabled={!pgn.trim()}
-              onClick={() => onPgn(pgn)}
-            >
+            <button className="primary" disabled={!pgn.trim()} onClick={reviewPasted}>
               Review game
             </button>
             <button onClick={() => setPgn(SAMPLE_PGN)}>Load a sample</button>
           </div>
+          {pastedGames.length > 1 && (
+            <>
+              <p className="note">
+                {pastedGames.length} games found in this paste — pick one:
+              </p>
+              <div className="games">
+                {pastedGames.map((g, i) => (
+                  <button className="game-card" key={i} onClick={() => onPgn(g.pgn)}>
+                    <span>
+                      {g.white} vs {g.black}
+                    </span>
+                    <small>
+                      {g.result} {g.date || ''}
+                    </small>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </>
       )}
 
