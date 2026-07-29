@@ -116,6 +116,36 @@ export function shareLink(pgn: string): string {
   return `${origin}${pathname}#pgn=${encodeURIComponent(pgn)}`;
 }
 
+/**
+ * Copy text to the clipboard, with a fallback for non-secure contexts and
+ * browsers without the async Clipboard API. Returns true on success.
+ */
+export async function copyText(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    /* fall through to the legacy path */
+  }
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.top = '-1000px';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    ta.remove();
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
 /** Read a PGN out of the current URL hash, if present. */
 export function pgnFromHash(): string | null {
   const hash = window.location.hash;

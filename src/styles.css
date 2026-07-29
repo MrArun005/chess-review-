@@ -508,6 +508,23 @@ a {
   margin-bottom: 7px;
 }
 
+/* ---------- share fallback ---------- */
+.share-fallback {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+}
+.share-fallback input {
+  flex: 1;
+  font-size: 12.5px;
+  font-family: 'SF Mono', ui-monospace, monospace;
+}
+
 /* ---------- misc ---------- */
 .progress {
   height: 7px;

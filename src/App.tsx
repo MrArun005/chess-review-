@@ -11,7 +11,7 @@ import { EngineLines } from './ui/EngineLines';
 import { sound } from './ui/sound';
 import { useExplore } from './ui/useExplore';
 import { useAnalysisEngine } from './ui/useAnalysisEngine';
-import { exportSummaryPng, shareLink, pgnFromHash } from './ui/exportImage';
+import { exportSummaryPng, shareLink, pgnFromHash, copyText } from './ui/exportImage';
 import { reviewGame, type ReviewResult, type ReviewProgress } from './review/pipeline';
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
@@ -26,6 +26,7 @@ export function App() {
   const [muted, setMuted] = useState(sound.isMuted());
   const [pgn, setPgn] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [shareFallback, setShareFallback] = useState<string | null>(null);
   const boardCol = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const prevPly = useRef<number>(-2);
@@ -145,12 +146,18 @@ export function App() {
     if (shared) void startReview(shared);
   }, [startReview]);
 
-  const copyLink = () => {
+  const copyLink = async () => {
     if (!pgn) return;
-    void navigator.clipboard?.writeText(shareLink(pgn)).then(() => {
+    const url = shareLink(pgn);
+    const ok = await copyText(url);
+    if (ok) {
+      setShareFallback(null);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-    });
+    } else {
+      // Couldn't copy (e.g. blocked) — reveal the link for manual copy.
+      setShareFallback(url);
+    }
   };
 
   const move = current >= 0 && result ? result.moves[current] : null;
@@ -222,6 +229,17 @@ export function App() {
 
       {result && (
         <>
+          {shareFallback && (
+            <div className="share-fallback">
+              <span className="note">Copy this link:</span>
+              <input
+                readOnly
+                value={shareFallback}
+                onFocus={(e) => e.currentTarget.select()}
+              />
+              <button onClick={() => setShareFallback(null)}>Done</button>
+            </div>
+          )}
           <div className="review">
             <div>
               <div className="board-col" ref={boardCol}>
