@@ -1,5 +1,5 @@
 import { Chess } from 'chess.js';
-import { Engine } from '../engine/analyzer';
+import { getSharedEngine } from '../engine/analyzer';
 import { getCached, putCached } from '../engine/cache';
 import type { Analysis, PvLine } from '../engine/types';
 import { winPctWhite, winPctForMover, moveAccuracy } from './winpct';
@@ -95,7 +95,7 @@ export async function reviewGame(
   const { plies, positions, headers } = parseGame(pgn);
   // Load the full opening database (merges into the bundled curated set).
   await ensureOpenings();
-  const engine = new Engine();
+  const engine = getSharedEngine();
   await engine.init();
 
   // Analysis per position index (0..n). Deepened in place across passes.
@@ -195,7 +195,8 @@ export async function reviewGame(
 
     return { moves, evalSeries, openingName, headers };
   } finally {
-    engine.dispose();
+    // The engine is shared for the session; leave it running (don't dispose).
+    engine.stop();
   }
 }
 

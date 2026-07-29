@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Chess, type Move } from 'chess.js';
 import { Board } from './Board';
-import { Engine } from '../engine/analyzer';
+import { getSharedEngine } from '../engine/analyzer';
 import { sound } from './sound';
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
@@ -29,7 +29,6 @@ interface Props {
 
 export function PlayMode({ onReview }: Props) {
   const gameRef = useRef(new Chess());
-  const engineRef = useRef<Engine | null>(null);
 
   // Position history so you can step back through the game.
   const [positions, setPositions] = useState<string[]>([START_FEN]);
@@ -67,17 +66,13 @@ export function PlayMode({ onReview }: Props) {
     return () => ro.disconnect();
   }, []);
 
-  const getEngine = () => {
-    if (!engineRef.current) engineRef.current = new Engine();
-    return engineRef.current;
-  };
-  // Pre-warm the engine as soon as Play opens, so the first move doesn't wait
-  // ~30s for the worker + neural net to load.
+  const getEngine = getSharedEngine;
+  // Pre-warm the shared engine as soon as Play opens, so the first move doesn't
+  // wait for the worker + neural net to load. Don't dispose it — it's shared.
   useEffect(() => {
-    void getEngine()
+    void getSharedEngine()
       .init()
       .catch(() => {});
-    return () => engineRef.current?.dispose();
   }, []);
 
   /** Rebuild the position history from the live game and jump the view to live. */

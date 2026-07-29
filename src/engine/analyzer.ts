@@ -202,6 +202,10 @@ export class Engine {
       };
 
       worker.addEventListener('message', onMsg);
+      // Ensure full strength for analysis (a prior play() call may have set a
+      // reduced Skill Level on this shared engine).
+      this.send('setoption name UCI_LimitStrength value false');
+      this.send('setoption name Skill Level value 20');
       this.send(`setoption name MultiPV value ${Math.max(1, multipv)}`);
       this.send(`position fen ${fen}`);
       this.send(`go depth ${depth}`);
@@ -274,6 +278,15 @@ export class Engine {
     });
   }
 
+  /** Halt any in-flight search without tearing down the worker. */
+  stop(): void {
+    try {
+      this.send('stop');
+    } catch {
+      /* ignore */
+    }
+  }
+
   /** Stop any in-flight search and terminate the worker. */
   dispose(): void {
     try {
@@ -286,6 +299,16 @@ export class Engine {
     this.worker = null;
     this.ready = null;
   }
+}
+
+// One shared engine for the whole session so the ~40 MB neural net loads only
+// once, instead of a separate copy per feature (review, play, explore, lines).
+let sharedEngine: Engine | null = null;
+
+/** The process-wide engine instance. Created on first use; never disposed. */
+export function getSharedEngine(): Engine {
+  if (!sharedEngine) sharedEngine = new Engine();
+  return sharedEngine;
 }
 
 function fenSideToMove(fen: string): 'w' | 'b' {
