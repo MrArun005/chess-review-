@@ -71,7 +71,14 @@ export function PlayMode({ onReview }: Props) {
     if (!engineRef.current) engineRef.current = new Engine();
     return engineRef.current;
   };
-  useEffect(() => () => engineRef.current?.dispose(), []);
+  // Pre-warm the engine as soon as Play opens, so the first move doesn't wait
+  // ~30s for the worker + neural net to load.
+  useEffect(() => {
+    void getEngine()
+      .init()
+      .catch(() => {});
+    return () => engineRef.current?.dispose();
+  }, []);
 
   /** Rebuild the position history from the live game and jump the view to live. */
   const rebuild = useCallback(() => {
