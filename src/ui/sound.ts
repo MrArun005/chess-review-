@@ -119,77 +119,73 @@ function knock({ modes, decay, tick, hp, gain = 1, at = 0 }: Knock): void {
   s2.stop(t + 0.03);
 }
 
+// The "Deep tok" profile chosen in the sound lab: low, warm, almost no click.
+const DEEP_TOK: Knock = {
+  modes: [
+    { f: 1100, q: 7, g: 0.42 },
+    { f: 450, q: 5, g: 0.55 },
+    { f: 200, q: 3, g: 0.4 },
+  ],
+  decay: 0.07,
+  tick: 0.05,
+  hp: 1800,
+  gain: 1,
+};
+
 export const sound = {
   move() {
-    // Crisp, dry wooden tap.
-    knock({
-      modes: [
-        { f: 2100, q: 9, g: 0.3 },
-        { f: 900, q: 7, g: 0.5 },
-        { f: 380, q: 4, g: 0.32 },
-      ],
-      decay: 0.05,
-      tick: 0.11,
-      hp: 3200,
-      gain: 0.95,
-    });
+    // Deep tok.
+    knock(DEEP_TOK);
   },
   capture() {
-    // Heavier, lower — a harder knock.
+    // Heavier deep tok — lower, a touch more contact.
     knock({
       modes: [
-        { f: 1500, q: 7, g: 0.42 },
-        { f: 520, q: 5, g: 0.6 },
-        { f: 240, q: 3, g: 0.4 },
+        { f: 900, q: 6, g: 0.45 },
+        { f: 380, q: 5, g: 0.6 },
+        { f: 170, q: 3, g: 0.45 },
       ],
-      decay: 0.07,
-      tick: 0.18,
-      hp: 2400,
+      decay: 0.085,
+      tick: 0.09,
+      hp: 1600,
       gain: 1,
     });
   },
   check() {
-    // A sharper, brighter tap so it stands out — still wood, no beep.
-    knock({
-      modes: [
-        { f: 2600, q: 10, g: 0.38 },
-        { f: 1100, q: 8, g: 0.42 },
-      ],
-      decay: 0.045,
-      tick: 0.2,
-      hp: 3600,
-      gain: 0.95,
-    });
+    // Deep tok tok — two deep toks.
+    knock(DEEP_TOK);
+    knock({ ...DEEP_TOK, at: 0.14 });
   },
   castle() {
-    // Two knocks: king, then rook.
-    this.move();
+    // Two toks: king, then rook (second a touch lower).
+    knock(DEEP_TOK);
     knock({
       modes: [
-        { f: 1900, q: 9, g: 0.28 },
-        { f: 820, q: 7, g: 0.48 },
-        { f: 360, q: 4, g: 0.3 },
+        { f: 1000, q: 7, g: 0.4 },
+        { f: 410, q: 5, g: 0.55 },
+        { f: 185, q: 3, g: 0.4 },
       ],
-      decay: 0.05,
-      tick: 0.1,
-      hp: 3200,
-      gain: 0.9,
-      at: 0.1,
+      decay: 0.07,
+      tick: 0.05,
+      hp: 1800,
+      gain: 1,
+      at: 0.12,
     });
   },
   promote() {
-    // Two rising taps.
-    this.move();
+    // Deep tok then a brighter tok — the upgrade.
+    knock(DEEP_TOK);
     knock({
       modes: [
-        { f: 2600, q: 10, g: 0.3 },
-        { f: 1200, q: 8, g: 0.42 },
+        { f: 1400, q: 7, g: 0.38 },
+        { f: 600, q: 6, g: 0.5 },
+        { f: 260, q: 3, g: 0.36 },
       ],
-      decay: 0.05,
-      tick: 0.14,
-      hp: 3600,
-      gain: 0.9,
-      at: 0.09,
+      decay: 0.06,
+      tick: 0.1,
+      hp: 2400,
+      gain: 0.95,
+      at: 0.12,
     });
   },
   /** Pick the right cue from a SAN string. */
