@@ -1,0 +1,115 @@
+[
+  {
+    "id": "misses-mate",
+    "priority": 120,
+    "category": "mate",
+    "when": { "bestIsMate": true, "playedIsMate": false },
+    "say": [
+      "{{best}} was mate in {{mateIn}}.",
+      "There was a forced mate — {{best}} mates in {{mateIn}}.",
+      "You had mate in {{mateIn}} with {{best}}."
+    ]
+  },
+  {
+    "id": "allows-mate",
+    "priority": 115,
+    "category": "mate",
+    "when": { "opponentMotif": "backrank", "materialSwing": { "lte": -3 } },
+    "say": [
+      "This walks into a back-rank mating net — {{refutation}} is crushing.",
+      "The back rank collapses after {{refutation}}."
+    ]
+  },
+  {
+    "id": "hangs-piece",
+    "priority": 100,
+    "category": "tactic",
+    "when": { "materialSwing": { "lte": -2 }, "refutationIsCapture": true },
+    "say": [
+      "Your {{piece}} on {{square}} was undefended — {{refutation}} just takes it.",
+      "{{refutation}} wins the {{piece}}; nothing was covering {{square}}.",
+      "{{square}} was hanging. {{refutation}} picks it up for free."
+    ]
+  },
+  {
+    "id": "allows-fork",
+    "priority": 95,
+    "category": "tactic",
+    "when": { "opponentMotif": "fork", "materialSwing": { "lte": -1 } },
+    "say": [
+      "{{refutation}} forks {{targets}}.",
+      "This runs into {{refutation}}, forking {{targets}}.",
+      "After {{refutation}} the fork on {{targets}} wins material."
+    ]
+  },
+  {
+    "id": "allows-pin",
+    "priority": 90,
+    "category": "tactic",
+    "when": { "opponentMotif": "pin", "materialSwing": { "lte": -1 } },
+    "say": [
+      "{{refutation}} pins and wins — {{motifDetail}}.",
+      "This allows {{refutation}}: {{motifDetail}}."
+    ]
+  },
+  {
+    "id": "allows-skewer",
+    "priority": 90,
+    "category": "tactic",
+    "when": { "opponentMotif": "skewer", "materialSwing": { "lte": -1 } },
+    "say": [
+      "{{refutation}} skewers you — {{motifDetail}}.",
+      "This loses to {{refutation}}: {{motifDetail}}."
+    ]
+  },
+  {
+    "id": "allows-backrank",
+    "priority": 88,
+    "category": "tactic",
+    "when": { "opponentMotif": "backrank" },
+    "say": [
+      "This leaves the back rank loose — {{refutation}} is strong.",
+      "Careful with the back rank; {{refutation}} exploits it."
+    ]
+  },
+  {
+    "id": "gets-trapped",
+    "priority": 85,
+    "category": "tactic",
+    "when": { "opponentMotif": "trapped", "materialSwing": { "lte": -1 } },
+    "say": [
+      "The {{piece}} gets trapped — {{motifDetail}} after {{refutation}}.",
+      "{{refutation}} traps the piece: {{motifDetail}}."
+    ]
+  },
+  {
+    "id": "drops-material-quiet",
+    "priority": 60,
+    "category": "tactic",
+    "when": { "materialSwing": { "lte": -2 } },
+    "say": [
+      "This drops material — {{best}} held everything together.",
+      "You come out down material here; {{best}} was safer."
+    ]
+  },
+  {
+    "id": "better-was-available",
+    "priority": 30,
+    "category": "positional",
+    "when": { "drop": { "gte": 5 } },
+    "say": [
+      "{{best}} was stronger — {{topFeatureDelta}}.",
+      "Prefer {{best}} here: {{topFeatureDelta}}."
+    ]
+  },
+  {
+    "id": "positional-fallback",
+    "priority": 10,
+    "category": "positional",
+    "when": {},
+    "say": [
+      "{{best}} kept more of an edge — {{topFeatureDelta}}.",
+      "A small slip; {{best}} was a touch better."
+    ]
+  }
+]
