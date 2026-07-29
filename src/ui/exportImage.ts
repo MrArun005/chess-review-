@@ -110,9 +110,22 @@ function countBy(moves: { classification: string }[]): Record<string, number> {
   return out;
 }
 
-/** Build a shareable URL that re-runs this game's review on open. */
-export function shareLink(pgn: string): string {
+/**
+ * Build a shareable URL that re-runs this game's review on open. The PGN is
+ * gzip-compressed into the hash (#g=...) so long games don't blow past URL
+ * length limits when pasted into chat apps; falls back to plain #pgn= where
+ * CompressionStream isn't available.
+ */
+export async function shareLink(pgn: string): Promise<string> {
   const { origin, pathname } = window.location;
+  if (typeof CompressionStream !== 'undefined') {
+    try {
+      const bytes = await gzip(pgn);
+      return `${origin}${pathname}#g=${toB64url(bytes)}`;
+    } catch {
+      /* fall back to plain encoding */
+    }
+  }
   return `${origin}${pathname}#pgn=${encodeURIComponent(pgn)}`;
 }
 
@@ -146,14 +159,56 @@ export async function copyText(text: string): Promise<boolean> {
   }
 }
 
-/** Read a PGN out of the current URL hash, if present. */
-export function pgnFromHash(): string | null {
+/** Read a PGN out of the current URL hash (compressed #g= or plain #pgn=). */
+export async function pgnFromHash(): Promise<string | null> {
   const hash = window.location.hash;
-  const m = hash.match(/[#&]pgn=([^&]+)/);
-  if (!m) return null;
-  try {
-    return decodeURIComponent(m[1]);
-  } catch {
-    return null;
+  const g = hash.match(/[#&]g=([^&]+)/);
+  if (g) {
+    try {
+      return await gunzip(fromB64url(g[1]));
+    } catch {
+      return null;
+    }
   }
+  const p = hash.match(/[#&]pgn=([^&]+)/);
+  if (p) {
+    try {
+      return decodeURIComponent(p[1]);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+async function gzip(str: string): Promise<Uint8Array> {
+  const cs = new CompressionStream('gzip');
+  const writer = cs.writable.getWriter();
+  void writer.write(new TextEncoder().encode(str));
+  void writer.close();
+  const buf = await new Response(cs.readable).arrayBuffer();
+  return new Uint8Array(buf);
+}
+
+async function gunzip(bytes: Uint8Array<ArrayBuffer>): Promise<string> {
+  const ds = new DecompressionStream('gzip');
+  const writer = ds.writable.getWriter();
+  void writer.write(bytes);
+  void writer.close();
+  const buf = await new Response(ds.readable).arrayBuffer();
+  return new TextDecoder().decode(buf);
+}
+
+function toB64url(bytes: Uint8Array): string {
+  let s = '';
+  for (const b of bytes) s += String.fromCharCode(b);
+  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function fromB64url(str: string): Uint8Array<ArrayBuffer> {
+  const b64 = str.replace(/-/g, '+').replace(/_/g, '/');
+  const bin = atob(b64);
+  const arr = new Uint8Array(new ArrayBuffer(bin.length));
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return arr;
 }

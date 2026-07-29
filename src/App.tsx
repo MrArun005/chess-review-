@@ -140,15 +140,16 @@ export function App() {
     else sound.move();
   }, [current, result]);
 
-  // Auto-load a game from a shared URL (#pgn=...).
+  // Auto-load a game from a shared URL (#g=... or #pgn=...).
   useEffect(() => {
-    const shared = pgnFromHash();
-    if (shared) void startReview(shared);
+    void pgnFromHash().then((shared) => {
+      if (shared) void startReview(shared);
+    });
   }, [startReview]);
 
   const copyLink = async () => {
     if (!pgn) return;
-    const url = shareLink(pgn);
+    const url = await shareLink(pgn);
     const ok = await copyText(url);
     if (ok) {
       setShareFallback(null);
