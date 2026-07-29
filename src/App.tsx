@@ -167,10 +167,26 @@ export function App() {
 
   return (
     <div className="app">
-      <h1>♟ Chess Review</h1>
-      <div className="tag">
-        Game review in your browser — eval, move grades, and plain-English
-        explanations. No backend, no login, no limits.
+      <div className="masthead">
+        <div>
+          <h1>
+            <span className="logo">♟</span> Chess Review
+          </h1>
+          <p className="tag">
+            Game review in your browser — eval, move grades, and plain-English
+            explanations. No backend, no login, no limits.
+          </p>
+        </div>
+        {result && (
+          <div className="toolbar">
+            <button onClick={reset}>← New game</button>
+            <button onClick={toggleMute}>{muted ? '🔇 Sound' : '🔊 Sound'}</button>
+            <button onClick={copyLink} disabled={!pgn}>
+              {copied ? '✓ Copied' : '🔗 Share'}
+            </button>
+            <button onClick={() => exportSummaryPng(result)}>🖼 Export</button>
+          </div>
+        )}
       </div>
 
       {!result && !reviewing && <Intake onPgn={startReview} />}
@@ -206,14 +222,6 @@ export function App() {
 
       {result && (
         <>
-          <div style={{ marginBottom: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button onClick={reset}>← New game</button>
-            <button onClick={toggleMute}>{muted ? '🔇 Sound off' : '🔊 Sound on'}</button>
-            <button onClick={copyLink} disabled={!pgn}>
-              {copied ? '✓ Link copied' : '🔗 Copy share link'}
-            </button>
-            <button onClick={() => exportSummaryPng(result)}>🖼 Export PNG</button>
-          </div>
           <div className="review">
             <div>
               <div className="board-col" ref={boardCol}>
@@ -233,14 +241,7 @@ export function App() {
 
               {explore ? (
                 <div className="card" style={{ marginTop: 8 }}>
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      marginBottom: 6,
-                    }}
-                  >
+                  <div className="explore-head">
                     <strong>Your line</strong>
                     <button onClick={resetExplore}>⟲ Back to game</button>
                   </div>

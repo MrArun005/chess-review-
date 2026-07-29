@@ -66,19 +66,19 @@ export const CLASS_ICON: Record<MoveClass, string> = {
   miss: '×',
 };
 
-/** Color used for badges / graph markers. */
+/** Color used for badges / graph markers (chess.com-like palette). */
 export const CLASS_COLOR: Record<MoveClass, string> = {
-  brilliant: '#1baaa6',
-  great: '#5c8bb0',
-  best: '#95bb4a',
-  excellent: '#96af8b',
-  good: '#96af8b',
+  brilliant: '#26c2a3',
+  great: '#749bbf',
+  best: '#81b64c',
+  excellent: '#81b64c',
+  good: '#95a75c',
   book: '#a88865',
-  forced: '#8f8f8f',
-  inaccuracy: '#f0c15c',
-  mistake: '#e58f2a',
-  blunder: '#ca3431',
-  miss: '#ca3431',
+  forced: '#9a948b',
+  inaccuracy: '#f7c631',
+  mistake: '#ffa459',
+  blunder: '#fa412d',
+  miss: '#ff7769',
 };
 
 /** Classes that count against the player in the summary. */

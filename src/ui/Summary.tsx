@@ -28,14 +28,8 @@ export function Summary({ moves, openingName }: Props) {
         </p>
       )}
       <div className="acc">
-        <div>
-          <div className="big">{stats.whiteAccuracy}</div>
-          <small>White accuracy</small>
-        </div>
-        <div>
-          <div className="big">{stats.blackAccuracy}</div>
-          <small>Black accuracy</small>
-        </div>
+        <AccBox label="White accuracy" acc={stats.whiteAccuracy} />
+        <AccBox label="Black accuracy" acc={stats.blackAccuracy} />
       </div>
 
       <div className="counts">
@@ -64,6 +58,29 @@ export function Summary({ moves, openingName }: Props) {
             </div>
           ) : null
         )}
+      </div>
+    </div>
+  );
+}
+
+function accColor(acc: number): string {
+  if (acc >= 90) return '#81b64c';
+  if (acc >= 80) return '#95a75c';
+  if (acc >= 70) return '#f7c631';
+  if (acc >= 55) return '#ffa459';
+  return '#fa412d';
+}
+
+function AccBox({ label, acc }: { label: string; acc: number }) {
+  const color = accColor(acc);
+  return (
+    <div className="box">
+      <div className="big" style={{ color }}>
+        {acc}
+      </div>
+      <small>{label}</small>
+      <div className="barwrap">
+        <div style={{ width: `${acc}%`, background: color }} />
       </div>
     </div>
   );
