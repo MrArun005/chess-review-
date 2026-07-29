@@ -135,26 +135,39 @@ export class Engine {
     // Best-so-far raw line per multipv rank.
     const rawByRank = new Map<number, RawPvLine>();
 
+    // Watchdog: a search should finish quickly, but if the engine ever wedges
+    // we don't want the whole review to hang. First nudge it with `stop` (which
+    // makes Stockfish emit `bestmove` immediately); if even that is ignored,
+    // resolve with whatever we have so the pipeline keeps going.
+    const softMs = Math.max(8000, depth * 1200);
+    const hardMs = softMs + 6000;
+
     return new Promise<Analysis>((resolve, reject) => {
       this.currentReject = reject;
+      let softTimer: ReturnType<typeof setTimeout>;
+      let hardTimer: ReturnType<typeof setTimeout>;
+
+      const finalize = () => {
+        cleanup();
+        const lines = [...rawByRank.values()]
+          .map((r) => normalizeToWhite(r, sideToMove))
+          .sort((a, b) => a.multipv - b.multipv);
+        if (lines.length === 0) {
+          // No PV (e.g. immediate mate/stalemate at the root, or a timed-out
+          // search). Return an empty best line rather than throwing.
+          const empty: PvLine = { multipv: 1, depth, cp: 0, mate: null, pv: [] };
+          resolve({ fen, depth, lines: [empty], best: empty });
+          return;
+        }
+        resolve({ fen, depth, lines, best: lines[0] });
+      };
 
       const onMsg = (ev: MessageEvent) => {
         const line = readLine(ev.data);
         if (!line) return;
 
         if (isBestmove(line)) {
-          cleanup();
-          const lines = [...rawByRank.values()]
-            .map((r) => normalizeToWhite(r, sideToMove))
-            .sort((a, b) => a.multipv - b.multipv);
-          if (lines.length === 0) {
-            // No PV (e.g. immediate mate/stalemate at the root). Return an
-            // empty best line rather than throwing so the pipeline can flag it.
-            const empty: PvLine = { multipv: 1, depth, cp: 0, mate: null, pv: [] };
-            resolve({ fen, depth, lines: [empty], best: empty });
-            return;
-          }
-          resolve({ fen, depth, lines, best: lines[0] });
+          finalize();
           return;
         }
 
@@ -169,6 +182,8 @@ export class Engine {
       };
 
       const cleanup = () => {
+        clearTimeout(softTimer);
+        clearTimeout(hardTimer);
         worker.removeEventListener('message', onMsg);
         this.currentReject = null;
       };
@@ -177,6 +192,9 @@ export class Engine {
       this.send(`setoption name MultiPV value ${Math.max(1, multipv)}`);
       this.send(`position fen ${fen}`);
       this.send(`go depth ${depth}`);
+
+      softTimer = setTimeout(() => this.send('stop'), softMs);
+      hardTimer = setTimeout(finalize, hardMs);
     });
   }
 
