@@ -17,6 +17,10 @@ const LEVELS = [
 ];
 
 type Color = 'w' | 'b';
+interface Sq {
+  from: string;
+  to: string;
+}
 
 interface Props {
   /** Hand the finished game's PGN to the review flow. */
@@ -27,8 +31,12 @@ export function PlayMode({ onReview }: Props) {
   const gameRef = useRef(new Chess());
   const engineRef = useRef<Engine | null>(null);
 
-  const [fen, setFen] = useState(START_FEN);
+  // Position history so you can step back through the game.
+  const [positions, setPositions] = useState<string[]>([START_FEN]);
+  const [moveSquares, setMoveSquares] = useState<Sq[]>([]);
   const [historySan, setHistorySan] = useState<string[]>([]);
+  const [viewIdx, setViewIdx] = useState(0); // index into positions
+
   const [thinking, setThinking] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [userColor, setUserColor] = useState<Color>('w');
@@ -36,14 +44,17 @@ export function PlayMode({ onReview }: Props) {
   const [levelIdx, setLevelIdx] = useState(2);
   const [colorChoice, setColorChoice] = useState<'w' | 'b' | 'random'>('w');
   const [hintUci, setHintUci] = useState<string | null>(null);
-  const [lastMove, setLastMove] = useState<{ from: string; to: string } | null>(null);
   const [boardWidth, setBoardWidth] = useState(440);
 
-  // Refs mirror state that the async engine callbacks read, to avoid stale closures.
+  const isLive = viewIdx === positions.length - 1;
+
+  // Refs mirror state the async engine callbacks / event handlers read.
   const levelRef = useRef(levelIdx);
   levelRef.current = levelIdx;
   const userColorRef = useRef(userColor);
   userColorRef.current = userColor;
+  const liveRef = useRef(isLive);
+  liveRef.current = isLive;
 
   const boardCol = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -62,10 +73,22 @@ export function PlayMode({ onReview }: Props) {
   };
   useEffect(() => () => engineRef.current?.dispose(), []);
 
-  const sync = useCallback(() => {
+  /** Rebuild the position history from the live game and jump the view to live. */
+  const rebuild = useCallback(() => {
     const g = gameRef.current;
-    setFen(g.fen());
+    const verbose = g.history({ verbose: true });
+    const replay = new Chess();
+    const pos = [replay.fen()];
+    const sq: Sq[] = [];
+    for (const m of verbose) {
+      replay.move(m.san);
+      pos.push(replay.fen());
+      sq.push({ from: m.from, to: m.to });
+    }
+    setPositions(pos);
+    setMoveSquares(sq);
     setHistorySan(g.history());
+    setViewIdx(pos.length - 1);
   }, []);
 
   const finish = useCallback(() => {
@@ -87,11 +110,10 @@ export function PlayMode({ onReview }: Props) {
     (mv: Move) => {
       sound.forSan(mv.san);
       setHintUci(null);
-      setLastMove({ from: mv.from, to: mv.to });
-      sync();
+      rebuild();
       if (gameRef.current.isGameOver()) finish();
     },
-    [sync, finish]
+    [rebuild, finish]
   );
 
   const engineMove = useCallback(async () => {
@@ -103,7 +125,7 @@ export function PlayMode({ onReview }: Props) {
     try {
       uci = await getEngine().play({ fen: g.fen(), skill: preset.skill, movetime: preset.movetime });
     } catch {
-      /* engine error — leave it to the user */
+      /* engine error */
     }
     setThinking(false);
     if (!uci) return;
@@ -111,7 +133,7 @@ export function PlayMode({ onReview }: Props) {
       const mv = g.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: (uci[4] as 'q') || 'q' });
       if (mv) afterMove(mv);
     } catch {
-      /* illegal engine move (shouldn't happen) */
+      /* ignore */
     }
   }, [afterMove]);
 
@@ -120,22 +142,20 @@ export function PlayMode({ onReview }: Props) {
       gameRef.current = new Chess();
       const color: Color = choice === 'random' ? (Math.random() < 0.5 ? 'w' : 'b') : choice;
       gameRef.current.header(
-        'White',
-        color === 'w' ? 'You' : 'Engine',
-        'Black',
-        color === 'b' ? 'You' : 'Engine',
-        'Event',
-        'Play vs Engine'
+        'White', color === 'w' ? 'You' : 'Engine',
+        'Black', color === 'b' ? 'You' : 'Engine',
+        'Event', 'Play vs Engine'
       );
       setUserColor(color);
       userColorRef.current = color;
       setOrientation(color === 'w' ? 'white' : 'black');
       setResult(null);
       setHintUci(null);
-      setLastMove(null);
       setThinking(false);
-      setFen(gameRef.current.fen());
+      setPositions([gameRef.current.fen()]);
+      setMoveSquares([]);
       setHistorySan([]);
+      setViewIdx(0);
       if (color === 'b') void engineMove(); // engine (White) moves first
     },
     [engineMove]
@@ -144,7 +164,7 @@ export function PlayMode({ onReview }: Props) {
   const onDrop = useCallback(
     (from: string, to: string): boolean => {
       const g = gameRef.current;
-      if (thinking || g.isGameOver()) return false;
+      if (thinking || g.isGameOver() || !liveRef.current) return false;
       if (g.turn() !== userColorRef.current) return false;
       let mv: Move | null = null;
       try {
@@ -163,11 +183,10 @@ export function PlayMode({ onReview }: Props) {
   const takeback = () => {
     const g = gameRef.current;
     if (g.history().length === 0 || thinking) return;
-    g.undo(); // undo the engine's reply
+    g.undo(); // engine's reply
     if (g.turn() !== userColorRef.current && g.history().length > 0) g.undo();
     setResult(null);
-    setLastMove(null);
-    sync();
+    rebuild();
   };
 
   const hint = async () => {
@@ -181,9 +200,28 @@ export function PlayMode({ onReview }: Props) {
     setResult(`You resigned — ${userColor === 'w' ? 'Black' : 'White'} (Engine) wins.`);
   };
 
+  // Browse history with the arrow keys.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') setViewIdx((v) => Math.max(0, v - 1));
+      else if (e.key === 'ArrowRight') setViewIdx((v) => Math.min(positions.length - 1, v + 1));
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [positions.length]);
+
   const started = historySan.length > 0 || result !== null;
   const yourTurn =
     !result && !thinking && gameRef.current.turn() === userColor && !gameRef.current.isGameOver();
+
+  const rows: { num: number; w?: { san: string; idx: number }; b?: { san: string; idx: number } }[] = [];
+  for (let i = 0; i < historySan.length; i += 2) {
+    rows.push({
+      num: i / 2 + 1,
+      w: { san: historySan[i], idx: i + 1 },
+      b: historySan[i + 1] ? { san: historySan[i + 1], idx: i + 2 } : undefined,
+    });
+  }
 
   return (
     <div className="review">
@@ -191,10 +229,10 @@ export function PlayMode({ onReview }: Props) {
         <div className="board-col" ref={boardCol}>
           <div className="board-wrap">
             <Board
-              fen={fen}
-              bestUci={hintUci}
-              playedFrom={lastMove?.from}
-              playedTo={lastMove?.to}
+              fen={positions[viewIdx]}
+              bestUci={isLive ? hintUci : null}
+              playedFrom={viewIdx > 0 ? moveSquares[viewIdx - 1]?.from : undefined}
+              playedTo={viewIdx > 0 ? moveSquares[viewIdx - 1]?.to : undefined}
               boardWidth={boardWidth}
               boardOrientation={orientation}
               onPieceDrop={onDrop}
@@ -202,19 +240,19 @@ export function PlayMode({ onReview }: Props) {
           </div>
         </div>
         <div className="nav">
-          <button onClick={() => setOrientation((o) => (o === 'white' ? 'black' : 'white'))}>
-            ⇅ Flip
-          </button>
-          <button onClick={takeback} disabled={!started || thinking}>
-            ↶ Takeback
-          </button>
-          <button onClick={hint} disabled={!yourTurn}>
-            💡 Hint
-          </button>
-          <button onClick={resign} disabled={!started || result !== null}>
-            🏳 Resign
-          </button>
+          <button onClick={() => setViewIdx(0)} disabled={viewIdx === 0}>⏮</button>
+          <button onClick={() => setViewIdx((v) => Math.max(0, v - 1))} disabled={viewIdx === 0}>←</button>
+          <button
+            onClick={() => setViewIdx((v) => Math.min(positions.length - 1, v + 1))}
+            disabled={isLive}
+          >→</button>
+          <button onClick={() => setViewIdx(positions.length - 1)} disabled={isLive}>⏭</button>
         </div>
+        {!isLive && (
+          <p className="note" style={{ textAlign: 'center', marginTop: 6 }}>
+            Viewing an earlier move — jump to the latest position (⏭) to keep playing.
+          </p>
+        )}
       </div>
 
       <div className="side-col">
@@ -225,9 +263,7 @@ export function PlayMode({ onReview }: Props) {
               Strength
               <select value={levelIdx} onChange={(e) => setLevelIdx(Number(e.target.value))}>
                 {LEVELS.map((l, i) => (
-                  <option key={i} value={i}>
-                    {l.label}
-                  </option>
+                  <option key={i} value={i}>{l.label}</option>
                 ))}
               </select>
             </label>
@@ -253,29 +289,41 @@ export function PlayMode({ onReview }: Props) {
           {result ? (
             <p style={{ margin: 0, fontWeight: 600 }}>{result}</p>
           ) : thinking ? (
-            <p className="note" style={{ margin: 0 }}>
-              Engine is thinking…
-            </p>
+            <p className="note" style={{ margin: 0 }}>Engine is thinking…</p>
           ) : started ? (
-            <p className="note" style={{ margin: 0 }}>
-              {yourTurn ? 'Your move.' : 'Waiting…'}
-            </p>
+            <p className="note" style={{ margin: 0 }}>{yourTurn ? 'Your move.' : 'Waiting…'}</p>
           ) : (
             <p className="note" style={{ margin: 0 }}>
               Pick a strength and colour, then hit New game. Drag a piece to move.
             </p>
           )}
+          <div className="play-buttons">
+            <button onClick={() => setOrientation((o) => (o === 'white' ? 'black' : 'white'))}>
+              ⇅ Flip
+            </button>
+            <button onClick={takeback} disabled={!started || thinking}>↶ Takeback</button>
+            <button onClick={hint} disabled={!yourTurn}>💡 Hint</button>
+            <button onClick={resign} disabled={!started || result !== null}>🏳 Resign</button>
+          </div>
           {result && (
-            <button style={{ marginTop: 10 }} onClick={() => onReview(gameRef.current.pgn())}>
+            <button style={{ marginTop: 10, width: '100%' }} onClick={() => onReview(gameRef.current.pgn())}>
               🔍 Review this game
             </button>
           )}
         </div>
 
-        {historySan.length > 0 && (
+        {rows.length > 0 && (
           <div className="card">
             <h3>Moves</h3>
-            <div className="play-moves">{formatMoves(historySan)}</div>
+            <div className="movelist">
+              {rows.map((r, i) => (
+                <div style={{ display: 'contents' }} key={i}>
+                  <div className="num">{r.num}.</div>
+                  <MoveCell m={r.w} viewIdx={viewIdx} onSelect={setViewIdx} />
+                  <MoveCell m={r.b} viewIdx={viewIdx} onSelect={setViewIdx} />
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -283,11 +331,22 @@ export function PlayMode({ onReview }: Props) {
   );
 }
 
-function formatMoves(san: string[]): string {
-  const out: string[] = [];
-  for (let i = 0; i < san.length; i += 2) {
-    const n = i / 2 + 1;
-    out.push(`${n}. ${san[i]}${san[i + 1] ? ' ' + san[i + 1] : ''}`);
-  }
-  return out.join('  ');
+function MoveCell({
+  m,
+  viewIdx,
+  onSelect,
+}: {
+  m?: { san: string; idx: number };
+  viewIdx: number;
+  onSelect: (i: number) => void;
+}) {
+  if (!m) return <span className="cell" />;
+  return (
+    <span
+      className={`cell ${viewIdx === m.idx ? 'active' : ''}`}
+      onClick={() => onSelect(m.idx)}
+    >
+      {m.san}
+    </span>
+  );
 }
