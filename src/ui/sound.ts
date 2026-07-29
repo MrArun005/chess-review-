@@ -37,9 +37,58 @@ function audioCtx(): AudioContext | null {
     master.gain.value = 1;
     master.connect(comp);
     comp.connect(ctx.destination);
+    loadSamples();
   }
   if (ctx.state === 'suspended') void ctx.resume().catch(() => {});
   return ctx;
+}
+
+// --- optional recorded samples -------------------------------------------
+// Drop files in public/sounds (move.mp3, capture.mp3, check.mp3, castle.mp3,
+// promote.mp3 — or .ogg/.wav) and they override the synth for that event. This
+// lets you use the exact sound you want without touching code. Missing files
+// silently fall back to the synthesized wooden knocks.
+
+const SAMPLE_NAMES = ['move', 'capture', 'check', 'castle', 'promote'] as const;
+type SampleName = (typeof SAMPLE_NAMES)[number];
+
+const samples = new Map<SampleName, AudioBuffer | null>();
+let samplesRequested = false;
+
+function loadSamples(): void {
+  if (samplesRequested) return;
+  samplesRequested = true;
+  const c = ctx;
+  if (!c) return;
+  const base = import.meta.env.BASE_URL ?? '/';
+  for (const name of SAMPLE_NAMES) {
+    void (async () => {
+      for (const ext of ['mp3', 'ogg', 'wav']) {
+        try {
+          const res = await fetch(`${base}sounds/${name}.${ext}`, { cache: 'force-cache' });
+          if (!res.ok) continue;
+          const buf = await res.arrayBuffer();
+          samples.set(name, await c.decodeAudioData(buf));
+          return;
+        } catch {
+          /* try next extension */
+        }
+      }
+      samples.set(name, null); // no file for this event → use synth
+    })();
+  }
+}
+
+/** Play a recorded sample if one is loaded. Returns true if it played. */
+function playSample(name: SampleName): boolean {
+  const buf = samples.get(name);
+  const c = ctx;
+  if (!buf || !c || !master) return false;
+  const src = c.createBufferSource();
+  src.buffer = buf;
+  src.connect(master);
+  src.start();
+  return true;
 }
 
 /** One reusable short white-noise buffer that excites the resonators. */
@@ -132,61 +181,90 @@ const DEEP_TOK: Knock = {
   gain: 1,
 };
 
+// --- synthesized fallbacks -----------------------------------------------
+
+function synthMove(): void {
+  knock(DEEP_TOK);
+}
+function synthCapture(): void {
+  // Heavier deep tok — lower, a touch more contact.
+  knock({
+    modes: [
+      { f: 900, q: 6, g: 0.45 },
+      { f: 380, q: 5, g: 0.6 },
+      { f: 170, q: 3, g: 0.45 },
+    ],
+    decay: 0.085,
+    tick: 0.09,
+    hp: 1600,
+    gain: 1,
+  });
+}
+function synthCheck(): void {
+  // A single firm, brighter rap — more assertive than the plain tok.
+  knock({
+    modes: [
+      { f: 1800, q: 9, g: 0.45 },
+      { f: 800, q: 7, g: 0.5 },
+      { f: 360, q: 4, g: 0.35 },
+    ],
+    decay: 0.055,
+    tick: 0.16,
+    hp: 3000,
+    gain: 1,
+  });
+}
+function synthCastle(): void {
+  knock(DEEP_TOK);
+  knock({
+    modes: [
+      { f: 1000, q: 7, g: 0.4 },
+      { f: 410, q: 5, g: 0.55 },
+      { f: 185, q: 3, g: 0.4 },
+    ],
+    decay: 0.07,
+    tick: 0.05,
+    hp: 1800,
+    gain: 1,
+    at: 0.12,
+  });
+}
+function synthPromote(): void {
+  knock(DEEP_TOK);
+  knock({
+    modes: [
+      { f: 1400, q: 7, g: 0.38 },
+      { f: 600, q: 6, g: 0.5 },
+      { f: 260, q: 3, g: 0.36 },
+    ],
+    decay: 0.06,
+    tick: 0.1,
+    hp: 2400,
+    gain: 0.95,
+    at: 0.12,
+  });
+}
+
 export const sound = {
   move() {
-    // Deep tok.
-    knock(DEEP_TOK);
+    if (muted) return;
+    if (!playSample('move')) synthMove();
   },
   capture() {
-    // Heavier deep tok — lower, a touch more contact.
-    knock({
-      modes: [
-        { f: 900, q: 6, g: 0.45 },
-        { f: 380, q: 5, g: 0.6 },
-        { f: 170, q: 3, g: 0.45 },
-      ],
-      decay: 0.085,
-      tick: 0.09,
-      hp: 1600,
-      gain: 1,
-    });
+    if (muted) return;
+    if (!playSample('capture')) synthCapture();
   },
   check() {
-    // Deep tok tok — two deep toks.
-    knock(DEEP_TOK);
-    knock({ ...DEEP_TOK, at: 0.14 });
+    if (muted) return;
+    if (!playSample('check')) synthCheck();
   },
   castle() {
-    // Two toks: king, then rook (second a touch lower).
-    knock(DEEP_TOK);
-    knock({
-      modes: [
-        { f: 1000, q: 7, g: 0.4 },
-        { f: 410, q: 5, g: 0.55 },
-        { f: 185, q: 3, g: 0.4 },
-      ],
-      decay: 0.07,
-      tick: 0.05,
-      hp: 1800,
-      gain: 1,
-      at: 0.12,
-    });
+    if (muted) return;
+    if (!playSample('castle')) synthCastle();
   },
   promote() {
-    // Deep tok then a brighter tok — the upgrade.
-    knock(DEEP_TOK);
-    knock({
-      modes: [
-        { f: 1400, q: 7, g: 0.38 },
-        { f: 600, q: 6, g: 0.5 },
-        { f: 260, q: 3, g: 0.36 },
-      ],
-      decay: 0.06,
-      tick: 0.1,
-      hp: 2400,
-      gain: 0.95,
-      at: 0.12,
-    });
+    if (muted) return;
+    if (!playSample('promote')) synthPromote();
   },
   /** Pick the right cue from a SAN string. */
   forSan(san: string) {
