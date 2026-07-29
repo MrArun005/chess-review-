@@ -9,6 +9,7 @@ import { phaseOf, type Phase } from './phase';
 import { extractFacts, materialSwing } from '../brain/facts';
 import { explain, type Explanation } from '../brain/engine';
 import { explainStrength } from '../brain/positive';
+import { loadGame } from './pgn';
 
 export interface ReviewedMove {
   ply: number; // 0-based
@@ -195,8 +196,7 @@ function parseGame(pgn: string): {
   positions: string[];
   headers: Record<string, string>;
 } {
-  const loader = new Chess();
-  loader.loadPgn(pgn);
+  const loader = loadGame(pgn);
   const headers = loader.header() as Record<string, string>;
   const verbose = loader.history({ verbose: true });
 
