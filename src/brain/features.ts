@@ -100,6 +100,35 @@ export function topFeatureDelta(
   return bestDir < 0 ? worse : better;
 }
 
+/**
+ * The biggest positive positional change from `fromFen` to `toFen` for the
+ * mover — used to say why a good move was good. Returns null when nothing
+ * meaningful improved (so callers can fall back to a neutral note).
+ */
+export function positiveFeature(
+  fromFen: string,
+  toFen: string,
+  mover: Color
+): string | null {
+  const before = extractFeatures(fromFen);
+  const after = extractFeatures(toFen);
+  const sign = mover === 'w' ? 1 : -1;
+
+  let bestKey: keyof Features | null = null;
+  let bestMag = 0;
+  for (const key of Object.keys(WEIGHTS) as (keyof Features)[]) {
+    const delta = (after[key] - before[key]) * sign;
+    if (delta <= 0) continue;
+    const mag = delta * WEIGHTS[key];
+    if (mag > bestMag) {
+      bestMag = mag;
+      bestKey = key;
+    }
+  }
+  if (!bestKey || bestMag < 0.3) return null;
+  return PHRASE[bestKey][1];
+}
+
 // --- individual feature computations -------------------------------------
 
 function mobilityFor(fen: string, color: Color): number {

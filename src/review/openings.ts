@@ -1,5 +1,5 @@
 import { Chess } from 'chess.js';
-import tsv from '../data/openings.tsv?raw';
+import bundled from '../data/openings.tsv?raw';
 
 export interface Opening {
   eco: string;
@@ -8,36 +8,74 @@ export interface Opening {
 
 /**
  * Book positions keyed by the first four FEN fields (placement, side, castling,
- * en passant) — move counters are dropped so transpositions match.
+ * en passant) — move counters dropped so transpositions match.
  *
- * The TSV stores opening lines as SAN move sequences; we replay each line and
- * index EVERY position along it. That guarantees the FEN keys are correct
- * (hand-writing opening FENs is error-prone) and lets "is this still book?"
- * be a single map lookup.
+ * We ship a small curated set bundled in the JS (instant, offline) and lazily
+ * load the full ~3,600-line lichess database from /openings/openings.tsv at
+ * runtime, merging it in. Keeping the big file out of the bundle avoids a
+ * ~400 KB hit to first paint. Opening lines are stored as move sequences and
+ * replayed, so the FEN keys are always correct; every position along a line is
+ * indexed.
  */
-const BOOK = buildBook();
+let BOOK = buildBook(bundled);
+let loaded = false;
+let loading: Promise<void> | null = null;
 
-function buildBook(): Map<string, Opening> {
+/** Load and merge the full opening database. Idempotent; safe to call often. */
+export function ensureOpenings(): Promise<void> {
+  if (loaded) return Promise.resolve();
+  if (loading) return loading;
+  loading = (async () => {
+    try {
+      const base = import.meta.env.BASE_URL ?? '/';
+      const res = await fetch(`${base}openings/openings.tsv`, { cache: 'force-cache' });
+      if (res.ok) {
+        const full = buildBook(await res.text());
+        // Full set overwrites curated entries for shared positions (more
+        // specific names win).
+        for (const [k, v] of full) BOOK.set(k, v);
+      }
+    } catch {
+      // Offline / missing file: keep the curated fallback.
+    } finally {
+      loaded = true;
+    }
+  })();
+  return loading;
+}
+
+function buildBook(tsv: string): Map<string, Opening> {
   const map = new Map<string, Opening>();
   const lines = tsv.trim().split('\n');
-  // Skip header row.
   for (const row of lines.slice(1)) {
-    const [eco, name, moves] = row.split('\t');
+    const cols = row.split('\t');
+    const eco = cols[0];
+    const name = cols[1];
+    const moves = cols[2];
     if (!moves) continue;
-    const chess = new Chess();
-    for (const san of moves.trim().split(/\s+/)) {
-      try {
-        const m = chess.move(san);
-        if (!m) break;
-      } catch {
-        break;
-      }
-      // Index the position AFTER each move; deeper lines overwrite shallower
-      // ones, so the most specific name wins for shared positions.
-      map.set(fenKey(chess.fen()), { eco, name });
-    }
+    indexLine(map, eco, name, moves);
   }
   return map;
+}
+
+/** Replay one opening line, indexing every position along it. */
+function indexLine(map: Map<string, Opening>, eco: string, name: string, movesField: string): void {
+  const chess = new Chess();
+  const tokens = movesField
+    .trim()
+    .split(/\s+/)
+    // Drop move numbers ("1.", "12...") and result markers.
+    .filter((t) => t && !/^\d+\.+$/.test(t) && !/^(1-0|0-1|1\/2-1\/2|\*)$/.test(t));
+
+  for (const san of tokens) {
+    try {
+      const m = chess.move(san);
+      if (!m) break;
+    } catch {
+      break;
+    }
+    map.set(fenKey(chess.fen()), { eco, name });
+  }
 }
 
 /** Normalize a FEN to its first four fields (drop halfmove/fullmove counters). */

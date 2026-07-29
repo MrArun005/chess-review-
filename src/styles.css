@@ -300,6 +300,58 @@ a {
   justify-content: space-between;
 }
 
+/* Phase breakdown */
+.phases {
+  margin-top: 12px;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.phase-head,
+.phase-row {
+  display: grid;
+  grid-template-columns: 1fr 60px 60px;
+  gap: 4px;
+  padding: 2px 0;
+}
+.phase-head {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.phase-head span:not(:first-child),
+.phase-row span:not(:first-child) {
+  text-align: right;
+}
+
+/* Engine lines */
+.lines .line {
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  gap: 8px;
+  padding: 3px 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.lines .line:hover {
+  background: var(--panel-2);
+}
+.lines .line .score {
+  font-weight: 700;
+  text-align: right;
+}
+.lines .line .pv {
+  font-family: 'SF Mono', ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Key moments */
 .moment {
   display: flex;

@@ -1,7 +1,10 @@
 import { useMemo } from 'react';
 import { gameAccuracy } from '../review/accuracy';
 import { CLASS_LABEL, CLASS_COLOR, type MoveClass } from '../review/classify';
+import { PHASE_LABEL, type Phase } from '../review/phase';
 import type { ReviewedMove } from '../review/pipeline';
+
+const PHASES: Phase[] = ['opening', 'middlegame', 'endgame'];
 
 interface Props {
   moves: ReviewedMove[];
@@ -45,6 +48,23 @@ export function Summary({ moves, openingName }: Props) {
           {renderCounts(stats.black)}
         </div>
       </div>
+
+      <div className="phases">
+        <div className="phase-head">
+          <span>Phase</span>
+          <span>White</span>
+          <span>Black</span>
+        </div>
+        {PHASES.map((p) =>
+          stats.phase[p].hasAny ? (
+            <div className="phase-row" key={p}>
+              <span>{PHASE_LABEL[p]}</span>
+              <span>{stats.phase[p].white ?? '—'}</span>
+              <span>{stats.phase[p].black ?? '—'}</span>
+            </div>
+          ) : null
+        )}
+      </div>
     </div>
   );
 }
@@ -59,15 +79,22 @@ function renderCounts(counts: Record<string, number>) {
 }
 
 function computeStats(moves: ReviewedMove[]) {
-  const white = countBy(moves.filter((m) => m.color === 'w'));
-  const black = countBy(moves.filter((m) => m.color === 'b'));
-
   const whiteMoves = moves.filter((m) => m.color === 'w');
   const blackMoves = moves.filter((m) => m.color === 'b');
 
+  const phase = {} as Record<
+    Phase,
+    { white: number | null; black: number | null; hasAny: boolean }
+  >;
+  for (const p of PHASES) {
+    const w = phaseAccuracy(whiteMoves, p);
+    const b = phaseAccuracy(blackMoves, p);
+    phase[p] = { white: w, black: b, hasAny: w !== null || b !== null };
+  }
+
   return {
-    white,
-    black,
+    white: countBy(whiteMoves),
+    black: countBy(blackMoves),
     whiteAccuracy: Math.round(
       gameAccuracy(
         whiteMoves.map((m) => m.accuracy),
@@ -80,7 +107,19 @@ function computeStats(moves: ReviewedMove[]) {
         blackMoves.map((m) => m.winMoverBefore)
       )
     ),
+    phase,
   };
+}
+
+function phaseAccuracy(moves: ReviewedMove[], p: Phase): number | null {
+  const inPhase = moves.filter((m) => m.phase === p);
+  if (inPhase.length === 0) return null;
+  return Math.round(
+    gameAccuracy(
+      inPhase.map((m) => m.accuracy),
+      inPhase.map((m) => m.winMoverBefore)
+    )
+  );
 }
 
 function countBy(moves: ReviewedMove[]): Record<string, number> {

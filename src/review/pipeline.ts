@@ -3,10 +3,12 @@ import { Engine } from '../engine/analyzer';
 import { getCached, putCached } from '../engine/cache';
 import type { Analysis, PvLine } from '../engine/types';
 import { winPctWhite, winPctForMover, moveAccuracy } from './winpct';
-import { classify, type MoveClass } from './classify';
-import { isBookPosition, lookupOpening } from './openings';
+import { classify, isGood, type MoveClass } from './classify';
+import { isBookPosition, lookupOpening, ensureOpenings } from './openings';
+import { phaseOf, type Phase } from './phase';
 import { extractFacts, materialSwing } from '../brain/facts';
 import { explain, type Explanation } from '../brain/engine';
+import { explainStrength } from '../brain/positive';
 
 export interface ReviewedMove {
   ply: number; // 0-based
@@ -25,6 +27,7 @@ export interface ReviewedMove {
   drop: number;
   accuracy: number;
   classification: MoveClass;
+  phase: Phase;
   bestSan: string | null;
   bestUci: string | null;
   bestLineSan: string[];
@@ -89,6 +92,8 @@ export async function reviewGame(
   const deepDepth = opts.deepDepth ?? depths.deep;
 
   const { plies, positions, headers } = parseGame(pgn);
+  // Load the full opening database (merges into the bundled curated set).
+  await ensureOpenings();
   const engine = new Engine();
   await engine.init();
 
@@ -279,7 +284,7 @@ function buildReviewedMove(
     winMoverAfter,
   });
 
-  // Explanations only for the flagged (bad) moves — good moves need no critique.
+  // Bad moves get a critique; good moves get praise explaining why they work.
   let explanations: Explanation[] = [];
   if ((base === 'inaccuracy' || base === 'mistake' || base === 'blunder') && before && after) {
     const facts = extractFacts({
@@ -292,6 +297,8 @@ function buildReviewedMove(
       winAfter: winMoverAfter,
     });
     explanations = explain(facts, ply.fenBefore);
+  } else if (isGood(classification)) {
+    explanations = explainStrength(ply.fenBefore, ply.uci, ply.fenAfter, classification);
   }
 
   return {
@@ -309,6 +316,7 @@ function buildReviewedMove(
     drop,
     accuracy,
     classification,
+    phase: phaseOf(ply.fenBefore),
     bestSan,
     bestUci,
     bestLineSan,

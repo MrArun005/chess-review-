@@ -7,8 +7,11 @@ import { MoveList } from './ui/MoveList';
 import { MoveDetail } from './ui/MoveDetail';
 import { Summary } from './ui/Summary';
 import { KeyMoments } from './ui/KeyMoments';
+import { EngineLines } from './ui/EngineLines';
 import { sound } from './ui/sound';
 import { useExplore } from './ui/useExplore';
+import { useAnalysisEngine } from './ui/useAnalysisEngine';
+import { exportSummaryPng, shareLink, pgnFromHash } from './ui/exportImage';
 import { reviewGame, type ReviewResult, type ReviewProgress } from './review/pipeline';
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
@@ -21,11 +24,14 @@ export function App() {
   const [current, setCurrent] = useState(-1); // ply index; -1 = start
   const [boardWidth, setBoardWidth] = useState(440);
   const [muted, setMuted] = useState(sound.isMuted());
+  const [pgn, setPgn] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const boardCol = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const prevPly = useRef<number>(-2);
 
-  const { explore, tryMove, reset: resetExplore } = useExplore();
+  const analyze = useAnalysisEngine();
+  const { explore, tryMove, reset: resetExplore } = useExplore(analyze);
 
   // Responsive board sizing.
   useEffect(() => {
@@ -46,6 +52,7 @@ export function App() {
       abortRef.current = ac;
 
       resetExplore();
+      setPgn(pgn);
       setError(null);
       setResult(null);
       setProgress(null);
@@ -132,6 +139,20 @@ export function App() {
     else sound.move();
   }, [current, result]);
 
+  // Auto-load a game from a shared URL (#pgn=...).
+  useEffect(() => {
+    const shared = pgnFromHash();
+    if (shared) void startReview(shared);
+  }, [startReview]);
+
+  const copyLink = () => {
+    if (!pgn) return;
+    void navigator.clipboard?.writeText(shareLink(pgn)).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  };
+
   const move = current >= 0 && result ? result.moves[current] : null;
 
   const displayFen = explore ? explore.fen : move ? move.fenAfter : START_FEN;
@@ -185,9 +206,13 @@ export function App() {
 
       {result && (
         <>
-          <div style={{ marginBottom: 12, display: 'flex', gap: 8 }}>
+          <div style={{ marginBottom: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button onClick={reset}>← New game</button>
             <button onClick={toggleMute}>{muted ? '🔇 Sound off' : '🔊 Sound on'}</button>
+            <button onClick={copyLink} disabled={!pgn}>
+              {copied ? '✓ Link copied' : '🔗 Copy share link'}
+            </button>
+            <button onClick={() => exportSummaryPng(result)}>🖼 Export PNG</button>
           </div>
           <div className="review">
             <div>
@@ -255,6 +280,11 @@ export function App() {
             <div className="side-col">
               <Summary moves={result.moves} openingName={result.openingName} />
               <MoveDetail move={move} />
+              <EngineLines
+                fen={displayFen}
+                analyze={analyze}
+                onPlay={(from, to) => tryMove(displayFen, from, to)}
+              />
               <div className="card">
                 <h3>Moves</h3>
                 <MoveList moves={result.moves} current={current} onSelect={goTo} />

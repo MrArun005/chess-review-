@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Chess } from 'chess.js';
-import { Engine } from '../engine/analyzer';
 import { winPctWhite } from '../review/winpct';
 import { sound } from './sound';
+import type { AnalyzeFn } from './useAnalysisEngine';
 
 export interface ExploreState {
   /** Position after the user's explored line. */
@@ -22,22 +22,16 @@ export interface ExploreState {
 /**
  * "Try your own move" — an on-demand analysis board. Drag a piece from the
  * position on screen and the engine evaluates the resulting position (win% for
- * the eval bar, a best-move arrow, and the best line in SAN). Keeps its own
- * long-lived engine so it doesn't fight the review engine.
+ * the eval bar, a best-move arrow, and the best line in SAN). Uses the shared
+ * analysis engine passed in.
  */
-export function useExplore(exploreDepth = 16) {
-  const engineRef = useRef<Engine | null>(null);
+export function useExplore(analyze: AnalyzeFn, exploreDepth = 16) {
   const [state, setState] = useState<ExploreState | null>(null);
 
-  useEffect(() => {
-    return () => engineRef.current?.dispose();
-  }, []);
-
-  const analyze = useCallback(
+  const run = useCallback(
     async (fen: string) => {
-      if (!engineRef.current) engineRef.current = new Engine();
       try {
-        const a = await engineRef.current.analyze({ fen, depth: exploreDepth, multipv: 1 });
+        const a = await analyze(fen, { depth: exploreDepth, multipv: 1 });
         const bestUci = a.best.pv[0] ?? null;
         setState((s) =>
           s && s.fen === fen
@@ -56,7 +50,7 @@ export function useExplore(exploreDepth = 16) {
         setState((s) => (s && s.fen === fen ? { ...s, loading: false } : s));
       }
     },
-    [exploreDepth]
+    [analyze, exploreDepth]
   );
 
   /**
@@ -83,10 +77,10 @@ export function useExplore(exploreDepth = 16) {
         analysis: null,
         loading: true,
       }));
-      void analyze(fen);
+      void run(fen);
       return true;
     },
-    [analyze]
+    [run]
   );
 
   const reset = useCallback(() => setState(null), []);
