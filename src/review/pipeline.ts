@@ -101,6 +101,10 @@ export async function reviewGame(
   // Analysis per position index (0..n). Deepened in place across passes.
   const analyses = new Array<Analysis | null>(positions.length).fill(null);
   const evalSeries = new Array<number>(positions.length).fill(50);
+  // Terminal positions (checkmate/stalemate/draw) are decided by the rules, not
+  // the engine — Stockfish returns no PV for a mated position, which would
+  // otherwise read as an even 50%.
+  const terminalWin = positions.map(terminalWinWhite);
 
   const analyzePos = async (
     index: number,
@@ -123,10 +127,14 @@ export async function reviewGame(
     // --- Pass 1: shallow scan ---------------------------------------------
     for (let i = 0; i < positions.length; i++) {
       if (opts.signal?.aborted) throw new DOMException('aborted', 'AbortError');
-      // Skip the engine on positions whose move is forced — the eval is
-      // inherited from the neighbour so the graph stays continuous.
-      const a = await analyzePos(i, shallowDepth, 1);
-      evalSeries[i] = winPctWhite(a.best);
+      const terminal = terminalWin[i];
+      if (terminal !== null) {
+        // Checkmate/stalemate/draw — set the eval from the rules, skip the engine.
+        evalSeries[i] = terminal;
+      } else {
+        const a = await analyzePos(i, shallowDepth, 1);
+        evalSeries[i] = winPctWhite(a.best);
+      }
       opts.onProgress?.({
         phase: 'scan',
         done: i + 1,
@@ -161,7 +169,9 @@ export async function reviewGame(
       }
     });
 
-    const deepList = [...deepIndices].filter((i) => i < positions.length).sort((a, b) => a - b);
+    const deepList = [...deepIndices]
+      .filter((i) => i < positions.length && terminalWin[i] === null)
+      .sort((a, b) => a - b);
     let done = 0;
     for (const i of deepList) {
       if (opts.signal?.aborted) throw new DOMException('aborted', 'AbortError');
@@ -190,6 +200,25 @@ export async function reviewGame(
 }
 
 // --- helpers ---------------------------------------------------------------
+
+/**
+ * White-perspective win% for a terminal position, or null if the game is still
+ * live. Checkmate → the side to move has lost; stalemate/draw → 50.
+ */
+export function terminalWinWhite(fen: string): number | null {
+  try {
+    const c = new Chess(fen);
+    if (c.isCheckmate()) {
+      return fen.split(/\s+/)[1] === 'w' ? 0 : 100;
+    }
+    if (c.isStalemate() || c.isInsufficientMaterial() || c.isDraw()) {
+      return 50;
+    }
+  } catch {
+    /* not a loadable position */
+  }
+  return null;
+}
 
 function parseGame(pgn: string): {
   plies: PlyMeta[];
