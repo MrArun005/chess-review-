@@ -12,7 +12,7 @@
 // by their original filenames relative to itself, so we copy EVERY file and add
 // a stable `stockfish.js` alias pointing at the single-threaded build.
 
-import { existsSync, mkdirSync, readdirSync, copyFileSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, copyFileSync, statSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -53,9 +53,19 @@ if (entry !== 'stockfish.js') {
   copyFileSync(join(srcDir, entry), join(outDir, 'stockfish.js'));
 }
 
+// Also identify the multi-threaded build, so the app can use it on hosts that
+// send the cross-origin isolation headers (3-4x faster). We load the real
+// filenames from a manifest at runtime and pick single vs multi by whether the
+// page is crossOriginIsolated.
+const multi = pickMulti(files);
+const manifest = { single: entry, multi };
+writeFileSync(join(outDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
+
 console.log(
   `[fetch-stockfish] Copied ${copied} file(s) from ${srcDir}\n` +
-    `  Entry -> public/engine/stockfish.js (source: ${entry})`
+    `  Single-threaded entry -> public/engine/stockfish.js (source: ${entry})\n` +
+    `  Multi-threaded entry  -> ${multi ?? '(none found)'}\n` +
+    `  Manifest              -> public/engine/manifest.json`
 );
 
 /** Locate the directory inside the stockfish package that holds the builds. */
@@ -102,4 +112,22 @@ function largest(list) {
     }
   }
   return best;
+}
+
+/**
+ * Pick the multi-threaded entry: a worker-capable build that is NOT the
+ * single-threaded one. Prefer the plain SIMD build (`stockfish-nnue-16.js`),
+ * then any non-single, non-no-Worker build. Returns null if only a
+ * single-threaded build ships.
+ */
+function pickMulti(fileList) {
+  const js = fileList.filter(
+    (f) => f.endsWith('.js') && !/single/i.test(f) && !/no-?worker/i.test(f)
+  );
+  return (
+    js.find((f) => /nnue-16\.js$/i.test(f)) ??
+    js.find((f) => /nnue-16-no-simd\.js$/i.test(f)) ??
+    js[0] ??
+    null
+  );
 }

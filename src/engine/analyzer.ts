@@ -1,4 +1,4 @@
-import { createStockfishWorker, readLine } from './stockfish.worker';
+import { resolveEngine, createWorker, readLine } from './stockfish.worker';
 import {
   parseInfoLine,
   isBestmove,
@@ -35,6 +35,8 @@ export class Engine {
   private queue: Promise<unknown> = Promise.resolve();
   private currentReject: ((e: Error) => void) | null = null;
   private opts: EngineOptions;
+  /** Whether the loaded build is multi-threaded (set during boot). */
+  private threaded = false;
 
   constructor(opts: EngineOptions = {}) {
     this.opts = opts;
@@ -48,12 +50,15 @@ export class Engine {
   }
 
   private async boot(): Promise<void> {
-    const worker = createStockfishWorker();
+    const choice = await resolveEngine();
+    this.threaded = choice.threaded;
+    const worker = createWorker(choice.url);
     this.worker = worker;
 
     worker.onerror = (e) => {
       const err = new Error(
-        `Stockfish worker failed to load. Is public/engine/stockfish.js present? (${e.message})`
+        `Stockfish worker failed to load from ${choice.url}. ` +
+          `Is the engine present in public/engine? (${e.message})`
       );
       this.currentReject?.(err);
     };
@@ -67,7 +72,9 @@ export class Engine {
 
   /** uci -> uciok, set options, isready -> readyok. */
   private handshake(): Promise<void> {
-    const threads = crossOriginIsolated ? this.opts.threads ?? navigatorThreads() : 1;
+    // Only the multi-threaded build benefits from Threads > 1; the
+    // single-threaded build ignores the option, so keep it at 1 there.
+    const threads = this.threaded ? this.opts.threads ?? navigatorThreads() : 1;
     const hash = this.opts.hash ?? 64;
 
     return new Promise<void>((resolve, reject) => {

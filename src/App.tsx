@@ -7,6 +7,8 @@ import { MoveList } from './ui/MoveList';
 import { MoveDetail } from './ui/MoveDetail';
 import { Summary } from './ui/Summary';
 import { KeyMoments } from './ui/KeyMoments';
+import { sound } from './ui/sound';
+import { useExplore } from './ui/useExplore';
 import { reviewGame, type ReviewResult, type ReviewProgress } from './review/pipeline';
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
@@ -18,8 +20,12 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [current, setCurrent] = useState(-1); // ply index; -1 = start
   const [boardWidth, setBoardWidth] = useState(440);
+  const [muted, setMuted] = useState(sound.isMuted());
   const boardCol = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const prevPly = useRef<number>(-2);
+
+  const { explore, tryMove, reset: resetExplore } = useExplore();
 
   // Responsive board sizing.
   useEffect(() => {
@@ -33,62 +39,110 @@ export function App() {
     return () => ro.disconnect();
   }, [result]);
 
-  const startReview = useCallback(async (pgn: string) => {
-    abortRef.current?.abort();
-    const ac = new AbortController();
-    abortRef.current = ac;
+  const startReview = useCallback(
+    async (pgn: string) => {
+      abortRef.current?.abort();
+      const ac = new AbortController();
+      abortRef.current = ac;
 
-    setError(null);
-    setResult(null);
-    setProgress(null);
-    setReviewing(true);
-    setCurrent(-1);
+      resetExplore();
+      setError(null);
+      setResult(null);
+      setProgress(null);
+      setReviewing(true);
+      setCurrent(-1);
 
-    try {
-      const r = await reviewGame(pgn, {
-        signal: ac.signal,
-        onProgress: (p) => setProgress(p),
-      });
-      if (!ac.signal.aborted) {
-        setResult(r);
-        setCurrent(r.moves.length ? 0 : -1);
+      try {
+        const r = await reviewGame(pgn, {
+          signal: ac.signal,
+          onProgress: (p) => setProgress(p),
+        });
+        if (!ac.signal.aborted) {
+          setResult(r);
+          setCurrent(r.moves.length ? 0 : -1);
+        }
+      } catch (e) {
+        if ((e as Error).name !== 'AbortError') {
+          setError(explainError(e));
+        }
+      } finally {
+        setReviewing(false);
       }
-    } catch (e) {
-      if ((e as Error).name !== 'AbortError') {
-        setError(explainError(e));
-      }
-    } finally {
-      setReviewing(false);
-    }
-  }, []);
+    },
+    [resetExplore]
+  );
 
   const reset = () => {
     abortRef.current?.abort();
+    resetExplore();
     setResult(null);
     setError(null);
     setProgress(null);
     setReviewing(false);
   };
 
-  // Keyboard navigation.
   const moveCount = result?.moves.length ?? 0;
+
+  // Navigate the reviewed game; any navigation exits exploration.
+  const goTo = useCallback(
+    (ply: number) => {
+      resetExplore();
+      setCurrent(Math.max(-1, Math.min(moveCount - 1, ply)));
+    },
+    [resetExplore, moveCount]
+  );
+  const step = useCallback(
+    (delta: number) => {
+      resetExplore();
+      setCurrent((c) => Math.max(-1, Math.min(moveCount - 1, c + delta)));
+    },
+    [resetExplore, moveCount]
+  );
+
+  const toggleMute = () => {
+    const m = !muted;
+    sound.setMuted(m);
+    setMuted(m);
+  };
+
+  // Keyboard navigation.
   useEffect(() => {
     if (!result) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight') setCurrent((c) => Math.min(moveCount - 1, c + 1));
-      else if (e.key === 'ArrowLeft') setCurrent((c) => Math.max(-1, c - 1));
-      else if (e.key === 'ArrowDown') setCurrent((c) => Math.min(moveCount - 1, c + 10));
-      else if (e.key === 'ArrowUp') setCurrent((c) => Math.max(-1, c - 10));
+      if (e.key === 'ArrowRight') step(1);
+      else if (e.key === 'ArrowLeft') step(-1);
+      else if (e.key === 'ArrowDown') step(10);
+      else if (e.key === 'ArrowUp') step(-10);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [result, moveCount]);
+  }, [result, step]);
+
+  // Play a sound as you step through the game (skip the initial load).
+  useEffect(() => {
+    if (!result) {
+      prevPly.current = -2;
+      return;
+    }
+    if (prevPly.current === current) return;
+    const first = prevPly.current === -2;
+    prevPly.current = current;
+    if (first) return;
+    if (current >= 0) sound.forSan(result.moves[current].san);
+    else sound.move();
+  }, [current, result]);
 
   const move = current >= 0 && result ? result.moves[current] : null;
-  const fen = move ? move.fenAfter : START_FEN;
-  const winWhite = result
-    ? result.evalSeries[current + 1] ?? result.evalSeries[0] ?? 50
-    : 50;
+
+  const displayFen = explore ? explore.fen : move ? move.fenAfter : START_FEN;
+  const winWhite = explore
+    ? explore.analysis?.winWhite ?? (result?.evalSeries[current + 1] ?? 50)
+    : result
+      ? result.evalSeries[current + 1] ?? result.evalSeries[0] ?? 50
+      : 50;
+  const bestUci = explore ? explore.analysis?.bestUci ?? null : move?.bestUci ?? null;
+  const hlFrom = explore ? explore.lastMove.from : move?.uci.slice(0, 2);
+  const hlTo = explore ? explore.lastMove.to : move?.uci.slice(2, 4);
 
   return (
     <div className="app">
@@ -131,8 +185,9 @@ export function App() {
 
       {result && (
         <>
-          <div style={{ marginBottom: 12 }}>
+          <div style={{ marginBottom: 12, display: 'flex', gap: 8 }}>
             <button onClick={reset}>← New game</button>
+            <button onClick={toggleMute}>{muted ? '🔇 Sound off' : '🔊 Sound on'}</button>
           </div>
           <div className="review">
             <div>
@@ -140,20 +195,51 @@ export function App() {
                 <EvalBar winWhite={winWhite} />
                 <div className="board-wrap">
                   <Board
-                    fen={fen}
-                    bestUci={move?.bestUci}
-                    playedFrom={move?.uci.slice(0, 2)}
-                    playedTo={move?.uci.slice(2, 4)}
-                    playedClass={move?.classification}
+                    fen={displayFen}
+                    bestUci={bestUci}
+                    playedFrom={hlFrom}
+                    playedTo={hlTo}
+                    playedClass={explore ? undefined : move?.classification}
                     boardWidth={boardWidth}
+                    onPieceDrop={(from, to) => tryMove(displayFen, from, to)}
                   />
                 </div>
               </div>
+
+              {explore ? (
+                <div className="card" style={{ marginTop: 8 }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: 6,
+                    }}
+                  >
+                    <strong>Your line</strong>
+                    <button onClick={resetExplore}>⟲ Back to game</button>
+                  </div>
+                  <div className="best">{explore.history.join(' ')}</div>
+                  {explore.loading ? (
+                    <p className="note">Analyzing your move…</p>
+                  ) : explore.analysis ? (
+                    <p className="note">
+                      Eval {Math.round(explore.analysis.winWhite)}% for White · best:{' '}
+                      {explore.analysis.lineSan.join(' ') || '—'}
+                    </p>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="note" style={{ textAlign: 'center', marginTop: 6 }}>
+                  Tip: drag a piece to try your own move and see the engine's reply.
+                </p>
+              )}
+
               <div className="nav">
-                <button onClick={() => setCurrent(-1)}>⏮</button>
-                <button onClick={() => setCurrent((c) => Math.max(-1, c - 1))}>←</button>
-                <button onClick={() => setCurrent((c) => Math.min(moveCount - 1, c + 1))}>→</button>
-                <button onClick={() => setCurrent(moveCount - 1)}>⏭</button>
+                <button onClick={() => goTo(-1)}>⏮</button>
+                <button onClick={() => step(-1)}>←</button>
+                <button onClick={() => step(1)}>→</button>
+                <button onClick={() => goTo(moveCount - 1)}>⏭</button>
               </div>
               <div className="card" style={{ marginTop: 10 }}>
                 <h3>Evaluation</h3>
@@ -161,7 +247,7 @@ export function App() {
                   series={result.evalSeries}
                   classes={result.moves.map((m) => m.classification)}
                   current={current + 1}
-                  onSeek={(p) => setCurrent(Math.max(-1, Math.min(moveCount - 1, p - 1)))}
+                  onSeek={(p) => goTo(p - 1)}
                 />
               </div>
             </div>
@@ -171,9 +257,9 @@ export function App() {
               <MoveDetail move={move} />
               <div className="card">
                 <h3>Moves</h3>
-                <MoveList moves={result.moves} current={current} onSelect={setCurrent} />
+                <MoveList moves={result.moves} current={current} onSelect={goTo} />
               </div>
-              <KeyMoments moves={result.moves} onSelect={setCurrent} />
+              <KeyMoments moves={result.moves} onSelect={goTo} />
             </div>
           </div>
         </>

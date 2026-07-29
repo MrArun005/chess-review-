@@ -134,15 +134,24 @@ export async function reviewGame(
 
     // --- Pass 2: deep on interesting plies --------------------------------
     const deepIndices = new Set<number>();
-    plies.forEach((_ply, i) => {
+    plies.forEach((ply, i) => {
       const c = prelim[i].base;
       const bad = c === 'inaccuracy' || c === 'mistake' || c === 'blunder';
-      const playedBest = prelim[i].playedBest;
-      if (bad || playedBest) {
-        // The move's before-position and after-position both matter.
+      if (bad) {
+        // Bad moves need deep MultiPV analysis for accurate grading and
+        // explanations; their neighbours give context.
         deepIndices.add(i);
         deepIndices.add(i + 1);
         if (i > 0) deepIndices.add(i - 1);
+        return;
+      }
+      // Best moves only need the deep pass if they could be Brilliant or Great,
+      // which requires a tactical move (a capture or a check). Deep-analyzing
+      // every quiet best move roughly doubled the second pass for no payoff.
+      const tacticalBest = prelim[i].playedBest && /[x+#]/.test(ply.san);
+      if (tacticalBest) {
+        deepIndices.add(i);
+        deepIndices.add(i + 1);
       }
     });
 

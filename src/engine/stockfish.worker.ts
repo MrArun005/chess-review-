@@ -4,24 +4,54 @@
 // UCI protocol over postMessage — so the cleanest, most robust design is to
 // spawn it directly rather than nest it inside another custom worker (nested
 // workers are flaky across browsers, and module-worker `importScripts` is not
-// allowed). This module just resolves the correct URL and constructs the raw
-// worker; `analyzer.ts` drives the UCI conversation on top of it.
+// allowed). `analyzer.ts` drives the UCI conversation on top of it.
 //
-// The engine binary is copied into public/engine by scripts/fetch-stockfish.mjs
-// at install time. If it is missing, engine construction throws a clear error.
+// scripts/fetch-stockfish.mjs copies the engine builds into public/engine and
+// writes a manifest naming the single- and multi-threaded entries. We pick the
+// multi-threaded build (3-4x faster) when the page is cross-origin isolated —
+// which the Vercel/Netlify headers in this repo enable — and fall back to the
+// single-threaded build everywhere else.
 
-/** Resolve the URL of the Stockfish worker script served from /public. */
-export function engineUrl(): string {
-  const base = import.meta.env.BASE_URL ?? '/';
-  return `${base}engine/stockfish.js`;
+interface EngineManifest {
+  single: string;
+  multi: string | null;
 }
 
-/**
- * Create the raw Stockfish worker. Classic (non-module) worker — the single
- * file build is UMD and sets up its own onmessage UCI handler.
- */
-export function createStockfishWorker(): Worker {
-  return new Worker(engineUrl());
+export interface EngineChoice {
+  url: string;
+  /** True if this is the multi-threaded build (Threads > 1 will take effect). */
+  threaded: boolean;
+}
+
+/** Resolve which engine build to load for this environment. */
+export async function resolveEngine(): Promise<EngineChoice> {
+  const base = import.meta.env.BASE_URL ?? '/';
+  const manifest = await loadManifest(base);
+
+  const isolated =
+    typeof crossOriginIsolated !== 'undefined' && crossOriginIsolated === true;
+
+  if (isolated && manifest?.multi) {
+    return { url: `${base}engine/${manifest.multi}`, threaded: true };
+  }
+  const single = manifest?.single ?? 'stockfish.js';
+  return { url: `${base}engine/${single}`, threaded: false };
+}
+
+async function loadManifest(base: string): Promise<EngineManifest | null> {
+  try {
+    const res = await fetch(`${base}engine/manifest.json`, { cache: 'no-cache' });
+    if (!res.ok) return null;
+    return (await res.json()) as EngineManifest;
+  } catch {
+    // No manifest (older install / manual drop): fall back to the alias.
+    return null;
+  }
+}
+
+/** Construct the raw Stockfish worker (classic worker — the build is UMD). */
+export function createWorker(url: string): Worker {
+  return new Worker(url);
 }
 
 /** Normalize a message event payload to a UCI text line. */
