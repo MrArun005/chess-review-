@@ -1,0 +1,20 @@
+node_modules
+dist
+dist-ssr
+*.local
+.DS_Store
+
+# Stockfish engine binaries are fetched into public/engine by the postinstall
+# script (scripts/fetch-stockfish.mjs). They are large and reproducible, so
+# they are not committed.
+public/engine/
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

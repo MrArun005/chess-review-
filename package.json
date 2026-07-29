@@ -1,0 +1,35 @@
+{
+  "name": "chess-review",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Chess.com-style game review — 100% browser-side, deterministic explanations, no backend.",
+  "scripts": {
+    "postinstall": "node scripts/fetch-stockfish.mjs",
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "eval": "tsx eval/run.ts"
+  },
+  "dependencies": {
+    "chess.js": "^1.0.0-beta.8",
+    "idb": "^8.0.0",
+    "react": "^18.3.1",
+    "react-chessboard": "^4.7.2",
+    "react-dom": "^18.3.1",
+    "stockfish": "16.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11",
+    "vitest": "^2.1.8"
+  }
+}
