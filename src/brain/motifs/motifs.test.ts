@@ -67,6 +67,22 @@ describe('detectBackrank', () => {
   });
 });
 
+describe('false-positive guards', () => {
+  it('does not report back rank when the enemy heavy piece cannot reach it', () => {
+    // Black king boxed in, but White's only queen is on a closed a-file (pawn
+    // on a2) — it can't operate on the back rank, so this must NOT fire.
+    const hits = detectBackrank(board('6k1/5ppp/8/8/8/8/P7/Q5K1 b - - 0 1'), 'b');
+    expect(hits.length).toBe(0);
+  });
+
+  it('does not report a fork whose forking piece hangs for free', () => {
+    // Black knight on e4 "forks" the rooks on c3 and g3, but it's attacked by
+    // the d3 pawn for free and isn't giving check — not a real fork.
+    const hits = detectFork(board('4k3/8/8/8/4n3/2RP2R1/8/4K3 b - - 0 1'), 'b');
+    expect(hits.length).toBe(0);
+  });
+});
+
 describe('detectAll', () => {
   it('aggregates motifs sorted by value at stake', () => {
     const hits = detectAll(board('r3k3/2N5/8/8/8/8/8/7K b - - 0 1'), 'w');

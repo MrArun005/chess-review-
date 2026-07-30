@@ -37,9 +37,13 @@ function pick(
   san: string,
   cls: MoveClass
 ): string | null {
-  // Threats the move creates for the mover (focus on the piece that landed).
+  // Threats the move actually CREATES — motifs present after the move but not
+  // before it. Without this diff, a pin/hanging piece that existed before the
+  // move gets falsely credited to it ("Nf3 — bishop pinned to the king").
+  const boardBefore = boardMap(new Chess(fenBefore));
   const boardAfter = boardMap(new Chess(fenAfter));
-  const created = detectAll(boardAfter, mover, landed);
+  const beforeKeys = new Set(detectAll(boardBefore, mover).map(motifKey));
+  const created = detectAll(boardAfter, mover, landed).filter((h) => !beforeKeys.has(motifKey(h)));
   const fork = created.find((h) => h.motif === 'fork');
   const pinLike = created.find((h) => h.motif === 'pin' || h.motif === 'skewer');
   const winsPiece = created.find((h) => h.motif === 'hanging' && (h.value ?? 0) >= 2);
@@ -65,6 +69,10 @@ function pick(
   const feat = positiveFeature(fenBefore, fenAfter, mover);
   if (feat) return `${san} — ${feat}.`;
   return null;
+}
+
+function motifKey(h: { motif: string; square?: string; targets?: string[] }): string {
+  return `${h.motif}|${h.square ?? ''}|${(h.targets ?? []).join(',')}`;
 }
 
 function humanTargets(squares: string[]): string {

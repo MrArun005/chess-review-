@@ -27,6 +27,7 @@ export function detectFork(
 
     const forkerValue = PIECE_VALUE[piece.type];
     const targets: { square: string; value: number; name: string }[] = [];
+    let givesCheck = false;
 
     for (const enemy of board.values()) {
       if (enemy.color !== victim) continue;
@@ -39,8 +40,21 @@ export function detectFork(
       const isKing = enemy.type === 'k';
       const winnable = isKing || targetValue > forkerValue || undefended;
       if (winnable) {
+        if (isKing) givesCheck = true;
         targets.push({ square: enemy.square, value: targetValue, name: NAME[enemy.type] });
       }
+    }
+
+    // A "fork" whose own piece hangs for free isn't a real threat — unless it's
+    // a check (the opponent must respond before capturing the forker).
+    if (!givesCheck) {
+      const enemyAttackers = attackersOf(board, piece.square, victim);
+      const defended = defendersOf(board, piece.square).length > 0;
+      const forkerHangs =
+        enemyAttackers.length > 0 &&
+        !defended &&
+        enemyAttackers.some((a) => PIECE_VALUE[a.type] < forkerValue);
+      if (forkerHangs) continue;
     }
 
     if (targets.length >= 2) {

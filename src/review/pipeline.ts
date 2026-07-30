@@ -105,6 +105,12 @@ export async function reviewGame(
   // the engine — Stockfish returns no PV for a mated position, which would
   // otherwise read as an even 50%.
   const terminalWin = positions.map(terminalWinWhite);
+  // Two win% series so grades are never computed from mismatched depths:
+  // shallowWin covers every position (pass 1); deepWin only the deepened ones
+  // (pass 2). A move is graded from deepWin only when BOTH its endpoints are
+  // deep, otherwise from the fully-consistent shallowWin pair.
+  const shallowWin = new Array<number>(positions.length).fill(50);
+  const deepWin = new Array<number | null>(positions.length).fill(null);
 
   const analyzePos = async (
     index: number,
@@ -113,13 +119,17 @@ export async function reviewGame(
   ): Promise<Analysis> => {
     const fen = positions[index];
     const cached = await getCached(fen, depth, multipv);
-    if (cached) {
+    // Ignore poisoned cache entries (empty results from a past timeout) so a
+    // one-off failure isn't served as a permanent even-eval no-move position.
+    if (cached && cached.best.pv.length > 0) {
       analyses[index] = cached;
       return cached;
     }
     const a = await engine.analyze({ fen, depth, multipv });
     analyses[index] = a;
-    await putCached(a, multipv);
+    // Never cache a degenerate/timed-out result — that would make the wrong
+    // answer permanent.
+    if (a.best.pv.length > 0) await putCached(a, multipv);
     return a;
   };
 
@@ -130,10 +140,12 @@ export async function reviewGame(
       const terminal = terminalWin[i];
       if (terminal !== null) {
         // Checkmate/stalemate/draw — set the eval from the rules, skip the engine.
+        shallowWin[i] = terminal;
         evalSeries[i] = terminal;
       } else {
         const a = await analyzePos(i, shallowDepth, 1);
-        evalSeries[i] = winPctWhite(a.best);
+        shallowWin[i] = winPctWhite(a.best);
+        evalSeries[i] = shallowWin[i];
       }
       opts.onProgress?.({
         phase: 'scan',
@@ -176,7 +188,8 @@ export async function reviewGame(
     for (const i of deepList) {
       if (opts.signal?.aborted) throw new DOMException('aborted', 'AbortError');
       const a = await analyzePos(i, deepDepth, 2);
-      evalSeries[i] = winPctWhite(a.best);
+      deepWin[i] = winPctWhite(a.best);
+      evalSeries[i] = deepWin[i]!;
       done++;
       opts.onProgress?.({
         phase: 'deep',
@@ -188,7 +201,7 @@ export async function reviewGame(
 
     // --- Build reviewed moves --------------------------------------------
     const moves: ReviewedMove[] = plies.map((_ply, i) =>
-      buildReviewedMove(plies, analyses, evalSeries, i)
+      buildReviewedMove(plies, analyses, shallowWin, deepWin, i)
     );
 
     const openingName = detectOpening(positions);
@@ -282,7 +295,8 @@ function classifyPly(
 function buildReviewedMove(
   plies: PlyMeta[],
   analyses: (Analysis | null)[],
-  evalSeries: number[],
+  shallowWin: number[],
+  deepWin: (number | null)[],
   i: number
 ): ReviewedMove {
   const ply = plies[i];
@@ -291,8 +305,12 @@ function buildReviewedMove(
   const before = beforeAnalysis?.best;
   const after = afterAnalysis?.best;
 
-  const winWhiteBefore = evalSeries[i];
-  const winWhiteAfter = evalSeries[i + 1];
+  // Grade from deep evals only when BOTH endpoints are deep; otherwise use the
+  // shallow pair. Never mix depths across a move (that mislabels ordinary moves
+  // at deepened-region boundaries).
+  const bothDeep = deepWin[i] != null && deepWin[i + 1] != null;
+  const winWhiteBefore = bothDeep ? (deepWin[i] as number) : shallowWin[i];
+  const winWhiteAfter = bothDeep ? (deepWin[i + 1] as number) : shallowWin[i + 1];
   const winMoverBefore = ply.color === 'w' ? winWhiteBefore : 100 - winWhiteBefore;
   const winMoverAfter = ply.color === 'w' ? winWhiteAfter : 100 - winWhiteAfter;
   const drop = winMoverBefore - winMoverAfter;

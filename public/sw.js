@@ -69,8 +69,10 @@ self.addEventListener('fetch', (event) => {
       // cached entries from matching plain navigation/subresource requests.
       const cached = await cache.match(req, { ignoreVary: true });
       if (cached) {
-        // Serve cached immediately; refresh in the background when online.
-        event.waitUntil(refresh(cache, req));
+        // Serve cached immediately. Only revalidate the HTML shell in the
+        // background — the engine (40 MB net + wasm), openings, and hashed
+        // JS/CSS are immutable, so re-fetching them every load was pure waste.
+        if (req.mode === 'navigate') event.waitUntil(refresh(cache, req));
         return cached;
       }
       try {

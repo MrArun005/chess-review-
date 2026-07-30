@@ -211,7 +211,13 @@ export class Engine {
       this.send(`go depth ${depth}`);
 
       softTimer = setTimeout(() => this.send('stop'), softMs);
-      hardTimer = setTimeout(finalize, hardMs);
+      // If even `stop` was ignored, the worker is wedged. Tear it down before
+      // finalizing so the stuck search can't cascade timeouts into the next
+      // request or leak a late `bestmove` into it. The next analyze() re-inits.
+      hardTimer = setTimeout(() => {
+        this.dispose();
+        finalize();
+      }, hardMs);
     });
   }
 

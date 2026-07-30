@@ -24,7 +24,7 @@
     "id": "hangs-piece",
     "priority": 100,
     "category": "tactic",
-    "when": { "materialSwing": { "lte": -2 }, "refutationIsCapture": true },
+    "when": { "opponentMotif": "hanging", "materialSwing": { "lte": -2 }, "refutationIsCapture": true },
     "say": [
       "Your {{piece}} on {{square}} was undefended — {{refutation}} just takes it.",
       "{{refutation}} wins the {{piece}}; nothing was covering {{square}}.",

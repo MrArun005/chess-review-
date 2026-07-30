@@ -25,6 +25,15 @@ describe('explainStrength', () => {
     expect(ex[0].text.toLowerCase()).toContain('brilliant');
   });
 
+  it('does not credit a pre-existing pin to an unrelated move', () => {
+    // Bb5 already pins the c6 knight to the king; White then just shuffles the
+    // king. The praise must NOT claim the move created the pin.
+    const before = '4k3/8/2n5/1B6/8/8/8/4K3 w - - 0 1';
+    const uci = 'e1e2';
+    const ex = explainStrength(before, uci, after(before, uci), 'best');
+    expect(ex.every((e) => !/pin/i.test(e.text))).toBe(true);
+  });
+
   it('stays silent on book and forced moves', () => {
     const before = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
     expect(explainStrength(before, 'e2e4', after(before, 'e2e4'), 'book')).toEqual([]);
