@@ -39,6 +39,7 @@ body {
   font-size: 15px;
   line-height: 1.45;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
 }
 
 /* ---------- buttons ---------- */
@@ -272,13 +273,18 @@ button.offline-ready {
 /* ---------- review layout ---------- */
 .review {
   display: grid;
-  grid-template-columns: minmax(320px, 1fr) 372px;
+  /* minmax(0, ...) lets the column shrink below the board's pixel width instead
+     of the track expanding to it and pushing the last files off-screen. */
+  grid-template-columns: minmax(0, 1fr) 372px;
   gap: 20px;
   align-items: start;
 }
+.review > * {
+  min-width: 0;
+}
 @media (max-width: 900px) {
   .review {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
