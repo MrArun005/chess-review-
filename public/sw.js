@@ -28,6 +28,19 @@ self.addEventListener('install', (event) => {
       const cache = await caches.open(CACHE);
       // Cache each individually so one 404 doesn't abort the whole install.
       await Promise.allSettled(PRECACHE.map((url) => cache.add(url)));
+      // Also precache the hashed app bundle referenced by index.html — the SW
+      // doesn't control the first page load, so those requests would otherwise
+      // never be cached, breaking offline until a second visit.
+      try {
+        const res = await fetch('./index.html', { cache: 'no-cache' });
+        const html = await res.text();
+        const assets = [...html.matchAll(/(?:src|href)="([^"]+)"/g)]
+          .map((m) => m[1])
+          .filter((u) => /\/?assets\//.test(u) || /\.(js|css)$/.test(u));
+        await Promise.allSettled([...new Set(assets)].map((u) => cache.add(u)));
+      } catch {
+        /* best effort */
+      }
       await self.skipWaiting();
     })()
   );
@@ -52,7 +65,9 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     (async () => {
       const cache = await caches.open(CACHE);
-      const cached = await cache.match(req, { ignoreSearch: false });
+      // ignoreVary: the server sends `Vary: Origin`, which would otherwise stop
+      // cached entries from matching plain navigation/subresource requests.
+      const cached = await cache.match(req, { ignoreVary: true });
       if (cached) {
         // Serve cached immediately; refresh in the background when online.
         event.waitUntil(refresh(cache, req));
@@ -67,7 +82,9 @@ self.addEventListener('fetch', (event) => {
       } catch {
         // Offline and not cached — fall back to the app shell for navigations.
         if (req.mode === 'navigate') {
-          const shell = await cache.match('./index.html');
+          const shell =
+            (await cache.match('./index.html', { ignoreVary: true })) ||
+            (await cache.match('./', { ignoreVary: true }));
           if (shell) return shell;
         }
         return Response.error();

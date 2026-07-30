@@ -28,12 +28,11 @@ export async function resolveEngine(): Promise<EngineChoice> {
   const base = import.meta.env.BASE_URL ?? '/';
   const manifest = await loadManifest(base);
 
-  const isolated =
-    typeof crossOriginIsolated !== 'undefined' && crossOriginIsolated === true;
-
-  if (isolated && manifest?.multi) {
-    return { url: `${base}engine/${manifest.multi}`, threaded: true };
-  }
+  // Always use the single-threaded build. The multi-threaded build spawns
+  // nested pthread workers, which break once a service worker controls the
+  // page (its fetch interception + COEP interact badly with the nested
+  // workers) and are unreliable on mobile Safari anyway. Single-threaded is a
+  // touch slower but works everywhere and caches cleanly for offline use.
   const single = manifest?.single ?? 'stockfish.js';
   return { url: `${base}engine/${single}`, threaded: false };
 }
