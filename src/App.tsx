@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Chess } from 'chess.js';
 import { Intake } from './ui/Intake';
 import { Board } from './ui/Board';
 import { EvalBar } from './ui/EvalBar';
@@ -176,6 +177,9 @@ export function App() {
   const hlFrom = explore ? explore.lastMove.from : move?.uci.slice(0, 2);
   const hlTo = explore ? explore.lastMove.to : move?.uci.slice(2, 4);
 
+  // Detect a finished game at the position on screen (for the checkmate sign).
+  const gameEnd = detectGameEnd(result ? displayFen : null, explore !== null);
+
   return (
     <div className="app">
       <div className="masthead">
@@ -283,11 +287,22 @@ export function App() {
                         ? { square: move.uci.slice(2, 4), cls: move.classification }
                         : null
                     }
+                    mateSquare={gameEnd?.kind === 'mate' ? gameEnd.kingSquare : null}
                     boardWidth={boardWidth}
                     onPieceDrop={(from, to) => tryMove(displayFen, from, to)}
                   />
                 </div>
               </div>
+
+              {gameEnd && !explore ? (
+                <div className={`game-end ${gameEnd.kind}`}>
+                  {gameEnd.kind === 'mate'
+                    ? `♚ Checkmate — ${gameEnd.winner} wins`
+                    : gameEnd.kind === 'stalemate'
+                      ? '½ Stalemate — draw'
+                      : '½ Draw'}
+                </div>
+              ) : null}
 
               {explore ? (
                 <div className="card" style={{ marginTop: 8 }}>
@@ -347,6 +362,37 @@ export function App() {
       )}
     </div>
   );
+}
+
+interface GameEnd {
+  kind: 'mate' | 'stalemate' | 'draw';
+  winner: string | null;
+  kingSquare: string | null;
+}
+
+/** Detect a finished game at `fen` (checkmate/stalemate/draw), for the UI sign. */
+function detectGameEnd(fen: string | null, exploring: boolean): GameEnd | null {
+  if (!fen || exploring) return null;
+  try {
+    const c = new Chess(fen);
+    if (c.isCheckmate()) {
+      const loser = c.turn();
+      let kingSquare: string | null = null;
+      for (const row of c.board()) {
+        for (const cell of row) {
+          if (cell?.type === 'k' && cell.color === loser) kingSquare = cell.square;
+        }
+      }
+      return { kind: 'mate', winner: loser === 'w' ? 'Black' : 'White', kingSquare };
+    }
+    if (c.isStalemate()) return { kind: 'stalemate', winner: null, kingSquare: null };
+    if (c.isInsufficientMaterial() || c.isDraw()) {
+      return { kind: 'draw', winner: null, kingSquare: null };
+    }
+  } catch {
+    /* not a terminal/loadable position */
+  }
+  return null;
 }
 
 function explainError(e: unknown): string {

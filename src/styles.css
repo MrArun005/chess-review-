@@ -361,6 +361,41 @@ button.offline-ready {
   color: #d9d7cf;
 }
 
+/* ---------- checkmate / game-end sign ---------- */
+.game-end {
+  margin-top: 8px;
+  text-align: center;
+  font-weight: 750;
+  font-size: 15px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+}
+.game-end.mate {
+  color: #ffd7cf;
+  background: rgba(202, 52, 49, 0.16);
+  border-color: rgba(202, 52, 49, 0.4);
+}
+.game-end.stalemate,
+.game-end.draw {
+  color: var(--muted);
+  background: var(--surface);
+}
+.mate-marker {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #ca3431;
+  color: #fff;
+  font-weight: 900;
+  line-height: 1;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+  z-index: 6;
+}
+
 /* ---------- move classification badge on the board ---------- */
 .move-badge {
   position: absolute;

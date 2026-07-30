@@ -14,6 +14,8 @@ interface Props {
   playedClass?: MoveClass;
   /** Classification badge to stamp on a destination square (chess.com style). */
   badge?: { square: string; cls: MoveClass } | null;
+  /** The checkmated king's square — draws a checkmate marker on it. */
+  mateSquare?: string | null;
   boardWidth: number;
   boardOrientation?: 'white' | 'black';
   onPieceDrop?: (from: string, to: string) => boolean;
@@ -26,6 +28,7 @@ export function Board({
   playedTo,
   playedClass,
   badge,
+  mateSquare,
   boardWidth,
   boardOrientation = 'white',
   onPieceDrop,
@@ -62,6 +65,35 @@ export function Board({
           orientation={boardOrientation}
         />
       )}
+      {mateSquare && (
+        <MateMarker square={mateSquare} boardWidth={boardWidth} orientation={boardOrientation} />
+      )}
+    </div>
+  );
+}
+
+/** A checkmate marker centered on the mated king's square. */
+function MateMarker({
+  square,
+  boardWidth,
+  orientation,
+}: {
+  square: string;
+  boardWidth: number;
+  orientation: 'white' | 'black';
+}) {
+  const sq = boardWidth / 8;
+  const file = square.charCodeAt(0) - 97;
+  const rank = Number(square[1]) - 1;
+  if (file < 0 || file > 7 || rank < 0 || rank > 7) return null;
+  const col = orientation === 'white' ? file : 7 - file;
+  const rowFromTop = orientation === 'white' ? 7 - rank : rank;
+  const size = Math.max(18, Math.min(34, sq * 0.5));
+  const left = col * sq + sq - size * 0.78;
+  const top = rowFromTop * sq - size * 0.22;
+  return (
+    <div className="mate-marker" style={{ left, top, width: size, height: size, fontSize: size * 0.6 }}>
+      #
     </div>
   );
 }
