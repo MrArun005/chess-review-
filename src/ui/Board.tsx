@@ -1,6 +1,6 @@
 import type { ComponentProps } from 'react';
 import { Chessboard } from 'react-chessboard';
-import { CLASS_COLOR, type MoveClass } from '../review/classify';
+import { CLASS_COLOR, CLASS_ICON, type MoveClass } from '../review/classify';
 
 type Arrows = ComponentProps<typeof Chessboard>['customArrows'];
 
@@ -12,6 +12,8 @@ interface Props {
   playedFrom?: string;
   playedTo?: string;
   playedClass?: MoveClass;
+  /** Classification badge to stamp on a destination square (chess.com style). */
+  badge?: { square: string; cls: MoveClass } | null;
   boardWidth: number;
   boardOrientation?: 'white' | 'black';
   onPieceDrop?: (from: string, to: string) => boolean;
@@ -23,6 +25,7 @@ export function Board({
   playedFrom,
   playedTo,
   playedClass,
+  badge,
   boardWidth,
   boardOrientation = 'white',
   onPieceDrop,
@@ -38,18 +41,70 @@ export function Board({
   if (playedTo) squareStyles[playedTo] = tint(highlight);
 
   return (
-    <Chessboard
-      position={fen}
-      boardWidth={boardWidth}
-      boardOrientation={boardOrientation}
-      customArrows={arrows as Arrows}
-      customSquareStyles={squareStyles}
-      arePiecesDraggable={Boolean(onPieceDrop)}
-      onPieceDrop={(from, to) => onPieceDrop?.(from, to) ?? false}
-      customBoardStyle={{ borderRadius: '6px' }}
-      customDarkSquareStyle={{ backgroundColor: '#769656' }}
-      customLightSquareStyle={{ backgroundColor: '#eeeed2' }}
-    />
+    <div style={{ position: 'relative', width: boardWidth, height: boardWidth }}>
+      <Chessboard
+        position={fen}
+        boardWidth={boardWidth}
+        boardOrientation={boardOrientation}
+        customArrows={arrows as Arrows}
+        customSquareStyles={squareStyles}
+        arePiecesDraggable={Boolean(onPieceDrop)}
+        onPieceDrop={(from, to) => onPieceDrop?.(from, to) ?? false}
+        customBoardStyle={{ borderRadius: '6px' }}
+        customDarkSquareStyle={{ backgroundColor: '#769656' }}
+        customLightSquareStyle={{ backgroundColor: '#eeeed2' }}
+      />
+      {badge && (
+        <MoveBadge
+          square={badge.square}
+          cls={badge.cls}
+          boardWidth={boardWidth}
+          orientation={boardOrientation}
+        />
+      )}
+    </div>
+  );
+}
+
+/** A classification badge pinned to the top-right of a square. */
+function MoveBadge({
+  square,
+  cls,
+  boardWidth,
+  orientation,
+}: {
+  square: string;
+  cls: MoveClass;
+  boardWidth: number;
+  orientation: 'white' | 'black';
+}) {
+  const sq = boardWidth / 8;
+  const file = square.charCodeAt(0) - 97; // a=0
+  const rank = Number(square[1]) - 1; // rank1=0
+  if (file < 0 || file > 7 || rank < 0 || rank > 7) return null;
+
+  const col = orientation === 'white' ? file : 7 - file;
+  const rowFromTop = orientation === 'white' ? 7 - rank : rank;
+
+  const size = Math.max(16, Math.min(30, sq * 0.44));
+  // Nudge to the top-right corner of the destination square.
+  const left = col * sq + sq - size * 0.72;
+  const top = rowFromTop * sq - size * 0.28;
+
+  return (
+    <div
+      className="move-badge"
+      style={{
+        left,
+        top,
+        width: size,
+        height: size,
+        background: CLASS_COLOR[cls],
+        fontSize: size * 0.5,
+      }}
+    >
+      {CLASS_ICON[cls]}
+    </div>
   );
 }
 

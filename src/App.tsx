@@ -278,6 +278,11 @@ export function App() {
                     playedFrom={hlFrom}
                     playedTo={hlTo}
                     playedClass={explore ? undefined : move?.classification}
+                    badge={
+                      !explore && move
+                        ? { square: move.uci.slice(2, 4), cls: move.classification }
+                        : null
+                    }
                     boardWidth={boardWidth}
                     onPieceDrop={(from, to) => tryMove(displayFen, from, to)}
                   />
