@@ -216,6 +216,22 @@ export function PlayMode({ onReview }: Props) {
   const yourTurn =
     !result && !thinking && gameRef.current.turn() === userColor && !gameRef.current.isGameOver();
 
+  // Checkmate marker for the position on screen (matches the review board).
+  let mateSquare: string | null = null;
+  try {
+    const c = new Chess(positions[viewIdx]);
+    if (c.isCheckmate()) {
+      const loser = c.turn();
+      for (const row of c.board()) {
+        for (const cell of row) {
+          if (cell?.type === 'k' && cell.color === loser) mateSquare = cell.square;
+        }
+      }
+    }
+  } catch {
+    /* not terminal */
+  }
+
   const rows: { num: number; w?: { san: string; idx: number }; b?: { san: string; idx: number } }[] = [];
   for (let i = 0; i < historySan.length; i += 2) {
     rows.push({
@@ -235,6 +251,7 @@ export function PlayMode({ onReview }: Props) {
               bestUci={isLive ? hintUci : null}
               playedFrom={viewIdx > 0 ? moveSquares[viewIdx - 1]?.from : undefined}
               playedTo={viewIdx > 0 ? moveSquares[viewIdx - 1]?.to : undefined}
+              mateSquare={mateSquare}
               boardWidth={boardWidth}
               boardOrientation={orientation}
               onPieceDrop={onDrop}
