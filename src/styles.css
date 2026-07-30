@@ -136,6 +136,14 @@ a {
   flex-wrap: wrap;
 }
 
+/* ---------- offline button ---------- */
+button.offline-ready {
+  color: var(--accent-strong);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+  opacity: 1;
+  cursor: default;
+}
+
 /* ---------- segmented nav ---------- */
 .segmented {
   display: flex;

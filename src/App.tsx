@@ -9,6 +9,7 @@ import { Summary } from './ui/Summary';
 import { KeyMoments } from './ui/KeyMoments';
 import { EngineLines } from './ui/EngineLines';
 import { PlayMode } from './ui/PlayMode';
+import { OfflineButton } from './ui/OfflineButton';
 import { sound } from './ui/sound';
 import { useExplore } from './ui/useExplore';
 import { useAnalysisEngine } from './ui/useAnalysisEngine';
@@ -199,6 +200,7 @@ export function App() {
               Play
             </button>
           </div>
+          <OfflineButton />
           {mode === 'review' && result && (
             <>
               <button onClick={reset}>← New game</button>
