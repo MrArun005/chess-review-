@@ -10,6 +10,7 @@ import { Summary } from './ui/Summary';
 import { KeyMoments } from './ui/KeyMoments';
 import { EngineLines } from './ui/EngineLines';
 import { PlayMode } from './ui/PlayMode';
+import { AnalyzeMode } from './ui/AnalyzeMode';
 import { OfflineButton } from './ui/OfflineButton';
 import { sound } from './ui/sound';
 import { useExplore } from './ui/useExplore';
@@ -31,6 +32,7 @@ export function App() {
   const [copied, setCopied] = useState(false);
   const [shareFallback, setShareFallback] = useState<string | null>(null);
   const [mode, setMode] = useState<'review' | 'play'>('review');
+  const [analyzeFen, setAnalyzeFen] = useState<string | null>(null);
   const [flipped, setFlipped] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     try {
@@ -250,7 +252,17 @@ export function App() {
         />
       )}
 
-      {mode === 'review' && !result && !reviewing && <Intake onPgn={startReview} />}
+      {mode === 'review' && analyzeFen && (
+        <AnalyzeMode
+          fen={analyzeFen}
+          analyze={analyze}
+          onExit={() => setAnalyzeFen(null)}
+        />
+      )}
+
+      {mode === 'review' && !analyzeFen && !result && !reviewing && (
+        <Intake onPgn={startReview} onFen={setAnalyzeFen} />
+      )}
 
       {mode === 'review' && reviewing && (
         <div className="intake">

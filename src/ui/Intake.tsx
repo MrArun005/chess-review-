@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Chess } from 'chess.js';
 import {
   fetchChessComGames,
   fetchLichessGames,
@@ -9,6 +10,8 @@ import {
 
 interface Props {
   onPgn: (pgn: string) => void;
+  /** Open the free analysis board on a given FEN. */
+  onFen?: (fen: string) => void;
 }
 
 const SAMPLE_PGN = `[Event "Sample"]
@@ -18,8 +21,8 @@ const SAMPLE_PGN = `[Event "Sample"]
 
 1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. b4 Bxb4 5. c3 Ba5 6. d4 exd4 7. O-O d3 8. Qb3 Qf6 9. e5 Qg6 10. Re1 Nge7 11. Ba3 b5 12. Qxb5 Rb8 13. Qa4 Bb6 14. Nbd2 Bb7 15. Ne4 Qf5 16. Bxd3 Qh5 17. Nf6+ gxf6 18. exf6 Rg8 19. Rad1 Qxf3 20. Rxe7+ Nxe7 21. Qxd7+ Kxd7 22. Bf5+ Ke8 23. Bd7+ Kf8 24. Bxe7# 1-0`;
 
-export function Intake({ onPgn }: Props) {
-  const [tab, setTab] = useState<'paste' | 'import'>('paste');
+export function Intake({ onPgn, onFen }: Props) {
+  const [tab, setTab] = useState<'paste' | 'import' | 'fen'>('paste');
   const [pgn, setPgn] = useState('');
   const [site, setSite] = useState<'chess.com' | 'lichess'>('chess.com');
   const [username, setUsername] = useState('');
@@ -27,6 +30,21 @@ export function Intake({ onPgn }: Props) {
   const [pastedGames, setPastedGames] = useState<GameSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fen, setFen] = useState('');
+  const [fenError, setFenError] = useState<string | null>(null);
+
+  const openFen = () => {
+    const f = fen.trim();
+    if (!f) return;
+    try {
+      // Validate — new Chess(fen) throws on an illegal position.
+      const c = new Chess(f);
+      onFen?.(c.fen());
+      setFenError(null);
+    } catch (e) {
+      setFenError(e instanceof Error ? e.message : 'Not a valid FEN.');
+    }
+  };
 
   const reviewPasted = () => {
     // A paste can contain several games — split and let the user pick.
@@ -72,6 +90,14 @@ export function Intake({ onPgn }: Props) {
         >
           Import by username
         </button>
+        {onFen && (
+          <button
+            className={tab === 'fen' ? 'active' : ''}
+            onClick={() => setTab('fen')}
+          >
+            Analyze a position
+          </button>
+        )}
       </div>
 
       {tab === 'paste' && (
@@ -149,6 +175,38 @@ export function Intake({ onPgn }: Props) {
               ))}
             </div>
           )}
+        </>
+      )}
+
+      {tab === 'fen' && onFen && (
+        <>
+          <textarea
+            value={fen}
+            onChange={(e) => {
+              setFen(e.target.value);
+              setFenError(null);
+            }}
+            placeholder="Paste a FEN, e.g. r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3"
+            spellCheck={false}
+            style={{ minHeight: 64 }}
+          />
+          <div className="row">
+            <button className="primary" disabled={!fen.trim()} onClick={openFen}>
+              Analyze position
+            </button>
+            <button
+              onClick={() =>
+                setFen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1')
+              }
+            >
+              Starting position
+            </button>
+          </div>
+          {fenError && <div className="error">{fenError}</div>}
+          <p className="note">
+            Set up any position and explore it with the engine — drag pieces,
+            see the eval bar, best move, and top engine lines.
+          </p>
         </>
       )}
 
