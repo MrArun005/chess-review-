@@ -18,7 +18,12 @@ interface Props {
   mateSquare?: string | null;
   boardWidth: number;
   boardOrientation?: 'white' | 'black';
-  onPieceDrop?: (from: string, to: string) => boolean;
+  /**
+   * Called when a piece is dropped. `promotion` is the chosen piece
+   * ('q' | 'r' | 'b' | 'n') when the move is a pawn promotion, else undefined.
+   * Return true to accept the move (piece stays), false to snap it back.
+   */
+  onPieceDrop?: (from: string, to: string, promotion?: string) => boolean;
 }
 
 export function Board({
@@ -53,6 +58,12 @@ export function Board({
         customSquareStyles={squareStyles}
         arePiecesDraggable={Boolean(onPieceDrop)}
         onPieceDrop={(from, to) => onPieceDrop?.(from, to) ?? false}
+        onPromotionPieceSelect={(piece, from, to) => {
+          // Fired when the user picks a piece from the built-in promotion
+          // dialog. `piece` is like "wQ"; forward its lowercase type.
+          if (!piece || !from || !to) return false;
+          return onPieceDrop?.(from, to, piece[1].toLowerCase()) ?? false;
+        }}
         customBoardStyle={{ borderRadius: '6px' }}
         customDarkSquareStyle={{ backgroundColor: '#769656' }}
         customLightSquareStyle={{ backgroundColor: '#eeeed2' }}

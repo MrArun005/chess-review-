@@ -238,14 +238,14 @@ export function PlayMode({ onReview }: Props) {
   );
 
   const onDrop = useCallback(
-    (from: string, to: string): boolean => {
+    (from: string, to: string, promotion = 'q'): boolean => {
       const g = gameRef.current;
       if (thinking || g.isGameOver() || !liveRef.current) return false;
       if (g.turn() !== userColorRef.current) return false;
       const fenBefore = g.fen();
       let mv: Move | null = null;
       try {
-        mv = g.move({ from, to, promotion: 'q' });
+        mv = g.move({ from, to, promotion });
       } catch {
         return false;
       }

@@ -67,10 +67,10 @@ export function AnalyzeMode({ fen, analyze, onExit }: Props) {
   };
 
   const onDrop = useCallback(
-    (from: string, to: string): boolean => {
+    (from: string, to: string, promotion = 'q'): boolean => {
       let mv: Move | null = null;
       try {
-        mv = gameRef.current.move({ from, to, promotion: 'q' });
+        mv = gameRef.current.move({ from, to, promotion });
       } catch {
         return false;
       }

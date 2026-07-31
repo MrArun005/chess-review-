@@ -58,11 +58,11 @@ export function useExplore(analyze: AnalyzeFn, exploreDepth = 16) {
    * keeps the piece), and kicks off analysis in the background.
    */
   const tryMove = useCallback(
-    (baseFen: string, from: string, to: string): boolean => {
+    (baseFen: string, from: string, to: string, promotion = 'q'): boolean => {
       const c = new Chess(baseFen);
       let mv;
       try {
-        mv = c.move({ from, to, promotion: 'q' });
+        mv = c.move({ from, to, promotion });
       } catch {
         return false;
       }
