@@ -31,6 +31,23 @@ export function App() {
   const [copied, setCopied] = useState(false);
   const [shareFallback, setShareFallback] = useState<string | null>(null);
   const [mode, setMode] = useState<'review' | 'play'>('review');
+  const [flipped, setFlipped] = useState(false);
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    try {
+      return localStorage.getItem('cr-theme') === 'light' ? 'light' : 'dark';
+    } catch {
+      return 'dark';
+    }
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    try {
+      localStorage.setItem('cr-theme', theme);
+    } catch {
+      /* ignore */
+    }
+  }, [theme]);
   const boardCol = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const prevPly = useRef<number>(-2);
@@ -205,6 +222,12 @@ export function App() {
             </button>
           </div>
           <OfflineButton />
+          <button
+            onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+            title="Toggle light / dark theme"
+          >
+            {theme === 'dark' ? '☀️' : '🌙'}
+          </button>
           {mode === 'review' && result && (
             <>
               <button onClick={reset}>← New game</button>
@@ -289,6 +312,7 @@ export function App() {
                     }
                     mateSquare={gameEnd?.kind === 'mate' ? gameEnd.kingSquare : null}
                     boardWidth={boardWidth}
+                    boardOrientation={flipped ? 'black' : 'white'}
                     onPieceDrop={(from, to) => tryMove(displayFen, from, to)}
                   />
                 </div>
@@ -331,6 +355,7 @@ export function App() {
                 <button onClick={() => step(-1)}>←</button>
                 <button onClick={() => step(1)}>→</button>
                 <button onClick={() => goTo(moveCount - 1)}>⏭</button>
+                <button onClick={() => setFlipped((f) => !f)} title="Flip board">⇅</button>
               </div>
               <div className="card" style={{ marginTop: 10 }}>
                 <h3>Evaluation</h3>
