@@ -35,17 +35,22 @@ export function EngineLines({ fen, analyze, onPlay, depth = 16, multipv = 3 }: P
     let cancelled = false;
     setLoading(true);
     setRows(null);
-    analyze(fen, { depth, multipv })
-      .then((a) => {
-        if (cancelled) return;
-        setRows(a.lines.map((l) => toRow(fen, l)));
-        setLoading(false);
-      })
-      .catch(() => {
-        if (!cancelled) setLoading(false);
-      });
+    // Debounce: stepping quickly through the game shouldn't enqueue a full
+    // MultiPV search per move — only analyze once the position settles.
+    const timer = setTimeout(() => {
+      analyze(fen, { depth, multipv })
+        .then((a) => {
+          if (cancelled) return;
+          setRows(a.lines.map((l) => toRow(fen, l)));
+          setLoading(false);
+        })
+        .catch(() => {
+          if (!cancelled) setLoading(false);
+        });
+    }, 350);
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
   }, [open, fen, analyze, depth, multipv]);
 

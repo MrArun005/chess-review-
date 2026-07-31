@@ -190,13 +190,31 @@ async function gzip(str: string): Promise<Uint8Array> {
   return new Uint8Array(buf);
 }
 
+/** Max decompressed PGN size — guards against a crafted zip-bomb share link. */
+const MAX_PGN_BYTES = 1_000_000;
+
 async function gunzip(bytes: Uint8Array<ArrayBuffer>): Promise<string> {
   const ds = new DecompressionStream('gzip');
   const writer = ds.writable.getWriter();
   void writer.write(bytes);
   void writer.close();
-  const buf = await new Response(ds.readable).arrayBuffer();
-  return new TextDecoder().decode(buf);
+  const reader = ds.readable.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.length;
+    if (total > MAX_PGN_BYTES) throw new Error('Shared game is too large.');
+    chunks.push(value);
+  }
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const c of chunks) {
+    out.set(c, offset);
+    offset += c.length;
+  }
+  return new TextDecoder().decode(out);
 }
 
 function toB64url(bytes: Uint8Array): string {

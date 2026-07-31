@@ -36,13 +36,18 @@ export async function fetchChessComGames(
   const { archives } = (await archivesRes.json()) as { archives: string[] };
   if (!archives?.length) return [];
 
-  const latest = archives[archives.length - 1];
-  const monthRes = await fetch(latest, { signal });
-  if (!monthRes.ok) throw new Error(`chess.com API error (${monthRes.status}).`);
-  const { games } = (await monthRes.json()) as { games: ChessComGame[] };
+  // Walk back from the newest month until we find one with games — the current
+  // month is empty early in the month or for inactive players.
+  let games: ChessComGame[] = [];
+  for (const url of archives.slice(-4).reverse()) {
+    const monthRes = await fetch(url, { signal });
+    if (!monthRes.ok) continue;
+    const data = (await monthRes.json()) as { games: ChessComGame[] };
+    games = (data.games ?? []).filter((g) => g.pgn);
+    if (games.length > 0) break;
+  }
 
   return games
-    .filter((g) => g.pgn)
     .reverse()
     .map((g) => ({
       source: 'chess.com' as const,

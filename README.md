@@ -82,19 +82,24 @@ npm run eval       # motif-detection metrics over eval/positions.json
 
 ## Deploying
 
-Multi-threaded Stockfish needs `SharedArrayBuffer`, which requires
-cross-origin isolation headers:
+Any static host works — it's just files. It's configured for **Vercel**
+(`vercel.json`) and **Netlify** (`netlify.toml`), including a service worker
+(`public/sw.js`) that caches the app + engine for **offline use**, and a web
+manifest so it installs to the home screen.
 
-```
-Cross-Origin-Opener-Policy:   same-origin
-Cross-Origin-Embedder-Policy: require-corp
-```
+### Engine build
 
-These are set for you on **Vercel** (`vercel.json`) and **Netlify**
-(`netlify.toml`), and in the Vite dev/preview servers (`vite.config.ts`).
+The app deliberately runs the **single-threaded** Stockfish build. The
+multi-threaded build is faster but spawns nested pthread workers that break
+once a service worker controls the page (needed for offline) and are unreliable
+on mobile Safari — so single-threaded is the reliable choice everywhere, and it
+caches cleanly for offline. Depth is capped lower on small screens to keep
+mobile responsive.
 
-> **GitHub Pages cannot set these headers**, so there you're stuck on the
-> single-threaded engine (3–4× slower). Use Vercel or Netlify.
+> The repo still ships the cross-origin isolation headers (`vercel.json`,
+> `netlify.toml`, `vite.config.ts`) — harmless, and they leave the door open to
+> re-enable the multi-threaded build later if the service-worker interaction is
+> solved.
 
 ---
 
