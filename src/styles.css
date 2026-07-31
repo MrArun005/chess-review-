@@ -190,6 +190,36 @@ button.offline-ready {
   gap: 6px;
   margin-top: 10px;
 }
+.play-buttons .coach-on {
+  color: var(--accent-strong);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+}
+
+/* Live coach message under the board */
+.coach {
+  margin-top: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  display: grid;
+  gap: 5px;
+}
+.coach-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+.coach-badge {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 750;
+  color: #14120f;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
 
 /* ---------- intake ---------- */
 .intake {

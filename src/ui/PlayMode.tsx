@@ -2,7 +2,16 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Chess, type Move } from 'chess.js';
 import { Board } from './Board';
 import { getSharedEngine } from '../engine/analyzer';
+import type { Analysis } from '../engine/types';
+import { winPctWhite, winPctForMover } from '../review/winpct';
+import { classify, CLASS_LABEL, CLASS_COLOR, type MoveClass } from '../review/classify';
+import { extractFacts } from '../brain/facts';
+import { explain } from '../brain/engine';
+import { explainStrength } from '../brain/positive';
 import { sound } from './sound';
+
+/** Depth for the live coach analyses (kept modest so play stays responsive). */
+const COACH_DEPTH = 12;
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -44,6 +53,13 @@ export function PlayMode({ onReview }: Props) {
   const [colorChoice, setColorChoice] = useState<'w' | 'b' | 'random'>('w');
   const [hintUci, setHintUci] = useState<string | null>(null);
   const [boardWidth, setBoardWidth] = useState(440);
+
+  // Live coach.
+  const [coachEnabled, setCoachEnabled] = useState(true);
+  const [coachMove, setCoachMove] = useState<{ san: string; cls: MoveClass; text: string } | null>(null);
+  const [coachSuggest, setCoachSuggest] = useState<{ san: string } | null>(null);
+  const [coachBusy, setCoachBusy] = useState(false);
+  const lastUserAnalysisRef = useRef<Analysis | null>(null);
 
   const isLive = viewIdx === positions.length - 1;
 
@@ -139,6 +155,61 @@ export function PlayMode({ onReview }: Props) {
     }
   }, [afterMove]);
 
+  // Coach: recommend the best move for the position it's the user's turn.
+  const runSuggestion = useCallback(async () => {
+    const g = gameRef.current;
+    if (g.isGameOver()) return;
+    const fen = g.fen();
+    try {
+      const a = await getSharedEngine().analyze({ fen, depth: COACH_DEPTH, multipv: 1 });
+      lastUserAnalysisRef.current = a;
+      const bestUci = a.best.pv[0];
+      const bestSan = bestUci ? uciToSan(fen, bestUci) : null;
+      if (bestSan && gameRef.current.fen() === fen) setCoachSuggest({ san: bestSan });
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  // Coach: grade the move the user just played and explain it.
+  const gradeUserMove = useCallback(
+    async (fenBefore: string, uci: string, san: string, afterFen: string, before: Analysis | null) => {
+      setCoachBusy(true);
+      try {
+        const a = await getSharedEngine().analyze({ fen: afterFen, depth: COACH_DEPTH, multipv: 1 });
+        const color = userColorRef.current;
+        const winWhiteAfter = winPctWhite(a.best);
+        const winMoverAfter = color === 'w' ? winWhiteAfter : 100 - winWhiteAfter;
+        let cls: MoveClass = 'good';
+        let text = '';
+        if (before) {
+          const winMoverBefore = winPctForMover(before.best, color);
+          cls = classify(winMoverBefore - winMoverAfter);
+          if (cls === 'inaccuracy' || cls === 'mistake' || cls === 'blunder') {
+            const facts = extractFacts({
+              fenBefore,
+              playedUci: uci,
+              fenAfter: afterFen,
+              bestLine: before.best,
+              afterLine: a.best,
+              winBefore: winMoverBefore,
+              winAfter: winMoverAfter,
+            });
+            text = explain(facts, fenBefore)[0]?.text ?? '';
+          } else {
+            text = explainStrength(fenBefore, uci, afterFen, cls)[0]?.text ?? '';
+          }
+        }
+        setCoachMove({ san, cls, text });
+      } catch {
+        /* ignore */
+      } finally {
+        setCoachBusy(false);
+      }
+    },
+    []
+  );
+
   const newGame = useCallback(
     (choice: 'w' | 'b' | 'random') => {
       gameRef.current = new Chess();
@@ -154,6 +225,9 @@ export function PlayMode({ onReview }: Props) {
       setResult(null);
       setHintUci(null);
       setThinking(false);
+      setCoachMove(null);
+      setCoachSuggest(null);
+      lastUserAnalysisRef.current = null;
       setPositions([gameRef.current.fen()]);
       setMoveSquares([]);
       setHistorySan([]);
@@ -168,6 +242,7 @@ export function PlayMode({ onReview }: Props) {
       const g = gameRef.current;
       if (thinking || g.isGameOver() || !liveRef.current) return false;
       if (g.turn() !== userColorRef.current) return false;
+      const fenBefore = g.fen();
       let mv: Move | null = null;
       try {
         mv = g.move({ from, to, promotion: 'q' });
@@ -176,11 +251,28 @@ export function PlayMode({ onReview }: Props) {
       }
       if (!mv) return false;
       afterMove(mv);
+      if (coachEnabled) {
+        setCoachSuggest(null);
+        const uci = mv.from + mv.to + (mv.promotion ?? '');
+        void gradeUserMove(fenBefore, uci, mv.san, g.fen(), lastUserAnalysisRef.current);
+      }
       if (!g.isGameOver()) window.setTimeout(() => void engineMove(), 150);
       return true;
     },
-    [thinking, afterMove, engineMove]
+    [thinking, afterMove, engineMove, coachEnabled, gradeUserMove]
   );
+
+  // Coach: when it becomes the user's turn, suggest the best move.
+  useEffect(() => {
+    if (!coachEnabled) {
+      setCoachSuggest(null);
+      return;
+    }
+    const g = gameRef.current;
+    if (thinking || result || g.isGameOver()) return;
+    if (g.turn() !== userColor) return;
+    void runSuggestion();
+  }, [coachEnabled, thinking, result, historySan.length, userColor, runSuggestion]);
 
   const takeback = () => {
     const g = gameRef.current;
@@ -188,6 +280,7 @@ export function PlayMode({ onReview }: Props) {
     g.undo(); // engine's reply
     if (g.turn() !== userColorRef.current && g.history().length > 0) g.undo();
     setResult(null);
+    setCoachMove(null);
     rebuild();
   };
 
@@ -272,6 +365,28 @@ export function PlayMode({ onReview }: Props) {
             Viewing an earlier move — jump to the latest position (⏭) to keep playing.
           </p>
         )}
+
+        {coachEnabled && (coachMove || coachSuggest || coachBusy) && (
+          <div className="coach">
+            {coachMove && (
+              <div className="coach-line">
+                <span className="coach-badge" style={{ background: CLASS_COLOR[coachMove.cls] }}>
+                  {CLASS_LABEL[coachMove.cls]}
+                </span>
+                <span>
+                  <b>{coachMove.san}</b>
+                  {coachMove.text ? ` — ${coachMove.text}` : ''}
+                </span>
+              </div>
+            )}
+            {!result && coachSuggest && (
+              <div className="note">
+                What to do now: play <b>{coachSuggest.san}</b>.
+              </div>
+            )}
+            {coachBusy && !coachMove && <div className="note">Looking at your move…</div>}
+          </div>
+        )}
       </div>
 
       <div className="side-col">
@@ -323,6 +438,13 @@ export function PlayMode({ onReview }: Props) {
             <button onClick={takeback} disabled={!started || thinking}>↶ Takeback</button>
             <button onClick={hint} disabled={!yourTurn}>💡 Hint</button>
             <button onClick={resign} disabled={!started || result !== null}>🏳 Resign</button>
+            <button
+              onClick={() => setCoachEnabled((v) => !v)}
+              className={coachEnabled ? 'coach-on' : ''}
+              style={{ gridColumn: '1 / -1' }}
+            >
+              🧠 Coach: {coachEnabled ? 'On' : 'Off'}
+            </button>
           </div>
           {result && (
             <button style={{ marginTop: 10, width: '100%' }} onClick={() => onReview(gameRef.current.pgn())}>
@@ -368,4 +490,14 @@ function MoveCell({
       {m.san}
     </span>
   );
+}
+
+function uciToSan(fen: string, uci: string): string | null {
+  try {
+    const c = new Chess(fen);
+    const m = c.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci[4] as never });
+    return m ? m.san : null;
+  } catch {
+    return null;
+  }
 }
