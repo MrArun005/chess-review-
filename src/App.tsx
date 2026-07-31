@@ -17,6 +17,8 @@ import { useExplore } from './ui/useExplore';
 import { useAnalysisEngine } from './ui/useAnalysisEngine';
 import { exportSummaryPng, shareLink, pgnFromHash, copyText } from './ui/exportImage';
 import { reviewGame, type ReviewResult, type ReviewProgress } from './review/pipeline';
+import { recordGame } from './review/weakness';
+import { Weakness } from './ui/Weakness';
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -91,6 +93,12 @@ export function App() {
         if (!ac.signal.aborted) {
           setResult(r);
           setCurrent(r.moves.length ? 0 : -1);
+          // Fold this game's mistakes into the cross-game weakness tally.
+          try {
+            recordGame(r);
+          } catch {
+            /* localStorage may be unavailable — non-fatal */
+          }
         }
       } catch (e) {
         if ((e as Error).name !== 'AbortError') {
@@ -261,7 +269,10 @@ export function App() {
       )}
 
       {mode === 'review' && !analyzeFen && !result && !reviewing && (
-        <Intake onPgn={startReview} onFen={setAnalyzeFen} />
+        <>
+          <Intake onPgn={startReview} onFen={setAnalyzeFen} />
+          <Weakness />
+        </>
       )}
 
       {mode === 'review' && reviewing && (

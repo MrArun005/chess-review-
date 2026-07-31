@@ -384,6 +384,52 @@ button.offline-ready {
   color: var(--faint);
 }
 
+/* ---------- weakness coach ---------- */
+.weakness {
+  max-width: 680px;
+  margin: 0 auto;
+  width: 100%;
+}
+.weakness-bars {
+  display: grid;
+  gap: 7px;
+  margin-top: 10px;
+}
+.weakness-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px 28px;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.weakness-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.weakness-track {
+  height: 8px;
+  border-radius: 5px;
+  background: var(--bg-2);
+  overflow: hidden;
+}
+.weakness-fill {
+  display: block;
+  height: 100%;
+  border-radius: 5px;
+  background: linear-gradient(90deg, var(--danger), #f0a03a);
+}
+.weakness-count {
+  text-align: right;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 560px) {
+  .weakness-row {
+    grid-template-columns: minmax(0, 1fr) 70px 24px;
+  }
+}
+
 /* ---------- eval bar ---------- */
 .evalbar {
   width: 26px;
