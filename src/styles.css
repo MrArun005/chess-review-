@@ -349,6 +349,28 @@ button.offline-ready {
      so center it instead of leaving dead space on the right. */
   justify-content: center;
 }
+/* Vertical stack (captured tray / board / captured tray) used where there's no
+   eval bar beside the board, e.g. Play mode. */
+.board-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  gap: 2px;
+}
+/* The hint strip above the board (Play mode). */
+.top-hint {
+  text-align: center;
+  font-weight: 600;
+  font-size: 13.5px;
+  color: var(--accent-strong);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  padding: 7px 12px;
+  margin-bottom: 10px;
+}
 .board-wrap {
   /* Size to the square board — don't stretch past it. */
   flex: 0 0 auto;
@@ -371,6 +393,43 @@ button.offline-ready {
 .side-col {
   display: grid;
   gap: 14px;
+}
+
+/* ---------- captured pieces + material advantage ---------- */
+.captured {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 24px;
+  padding: 2px;
+  font-size: 19px;
+  line-height: 1;
+}
+.captured-pieces {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+/* Overlap the silhouettes slightly, chess.com style. */
+.captured-piece {
+  margin-right: -5px;
+}
+.captured-pieces.dark .captured-piece {
+  color: #56534c;
+  text-shadow: 0 0 1px rgba(255, 255, 255, 0.3);
+}
+.captured-pieces.light .captured-piece {
+  color: #f4f1e8;
+  /* Dark outline so the light silhouettes read on a light theme too. */
+  text-shadow: 0 0 1px rgba(0, 0, 0, 0.7), 0 1px 1px rgba(0, 0, 0, 0.35);
+}
+.captured-adv {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  margin-left: 4px;
 }
 
 /* ---------- cards ---------- */

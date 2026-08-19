@@ -12,6 +12,7 @@ import { EngineLines } from './ui/EngineLines';
 import { PlayMode } from './ui/PlayMode';
 import { AnalyzeMode } from './ui/AnalyzeMode';
 import { OfflineButton } from './ui/OfflineButton';
+import { CapturedTray, computeCaptured } from './ui/Captured';
 import { sound } from './ui/sound';
 import { useExplore } from './ui/useExplore';
 import { useAnalysisEngine } from './ui/useAnalysisEngine';
@@ -216,6 +217,9 @@ export function App() {
   // Detect a finished game at the position on screen (for the checkmate sign).
   const gameEnd = detectGameEnd(result ? displayFen : null, explore !== null);
 
+  // Captured pieces + material advantage for the position on screen.
+  const captured = computeCaptured(displayFen);
+
   return (
     <div className="app">
       <div className="masthead">
@@ -328,6 +332,7 @@ export function App() {
           )}
           <div className="review">
             <div>
+              <CapturedTray info={captured} side={flipped ? 'w' : 'b'} offset={19} />
               <div className="board-col" ref={boardCol}>
                 <EvalBar winWhite={winWhite} />
                 <div className="board-wrap">
@@ -349,6 +354,7 @@ export function App() {
                   />
                 </div>
               </div>
+              <CapturedTray info={captured} side={flipped ? 'b' : 'w'} offset={19} />
 
               {gameEnd && !explore ? (
                 <div className={`game-end ${gameEnd.kind}`}>

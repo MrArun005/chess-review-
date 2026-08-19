@@ -3,6 +3,7 @@ import { Chess, type Move } from 'chess.js';
 import { Board } from './Board';
 import { EvalBar } from './EvalBar';
 import { EngineLines } from './EngineLines';
+import { CapturedTray, computeCaptured } from './Captured';
 import { winPctWhite } from '../review/winpct';
 import { sound } from './sound';
 import type { AnalyzeFn } from './useAnalysisEngine';
@@ -74,6 +75,8 @@ export function AnalyzeMode({ fen, analyze, onExit }: Props) {
     setHistorySan(gameRef.current.history());
   };
 
+  const captured = computeCaptured(displayFen);
+
   const onDrop = useCallback(
     (from: string, to: string, promotion = 'q'): boolean => {
       let mv: Move | null = null;
@@ -109,6 +112,7 @@ export function AnalyzeMode({ fen, analyze, onExit }: Props) {
       </div>
       <div className="review">
         <div>
+          <CapturedTray info={captured} side={orientation === 'white' ? 'b' : 'w'} offset={19} />
           <div className="board-col" ref={boardCol}>
             <EvalBar winWhite={best?.winWhite ?? 50} />
             <div className="board-wrap">
@@ -123,6 +127,7 @@ export function AnalyzeMode({ fen, analyze, onExit }: Props) {
               />
             </div>
           </div>
+          <CapturedTray info={captured} side={orientation === 'white' ? 'w' : 'b'} offset={19} />
           <div className="nav">
             <button onClick={undo} disabled={historySan.length === 0}>↶ Undo</button>
             <button onClick={() => setOrientation((o) => (o === 'white' ? 'black' : 'white'))}>⇅ Flip</button>

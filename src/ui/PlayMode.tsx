@@ -9,6 +9,7 @@ import { extractFacts } from '../brain/facts';
 import { explain } from '../brain/engine';
 import { explainStrength } from '../brain/positive';
 import { sound } from './sound';
+import { CapturedTray, computeCaptured } from './Captured';
 
 /** Depth for the live coach analyses (kept modest so play stays responsive). */
 const COACH_DEPTH = 12;
@@ -341,21 +342,41 @@ export function PlayMode({ onReview }: Props) {
     });
   }
 
+  const captured = computeCaptured(positions[viewIdx]);
+  const bottomSide: 'w' | 'b' = orientation === 'white' ? 'w' : 'b';
+  const topSide: 'w' | 'b' = bottomSide === 'w' ? 'b' : 'w';
+
+  // The hint shown at the top of the board while it's your move.
+  const topHint = !result && isLive
+    ? yourTurn
+      ? coachSuggest
+        ? `Hint: play ${coachSuggest.san}`
+        : 'Your move.'
+      : thinking
+        ? 'Engine is thinking…'
+        : null
+    : null;
+
   return (
     <div className="review">
       <div>
+        {topHint && <div className="top-hint">{topHint}</div>}
         <div className="board-col" ref={boardCol}>
-          <div className="board-wrap">
-            <Board
-              fen={positions[viewIdx]}
-              bestUci={isLive ? hintUci : null}
-              playedFrom={viewIdx > 0 ? moveSquares[viewIdx - 1]?.from : undefined}
-              playedTo={viewIdx > 0 ? moveSquares[viewIdx - 1]?.to : undefined}
-              mateSquare={mateSquare}
-              boardWidth={boardWidth}
-              boardOrientation={orientation}
-              onPieceDrop={onDrop}
-            />
+          <div className="board-stack">
+            <CapturedTray info={captured} side={topSide} />
+            <div className="board-wrap">
+              <Board
+                fen={positions[viewIdx]}
+                bestUci={isLive ? hintUci : null}
+                playedFrom={viewIdx > 0 ? moveSquares[viewIdx - 1]?.from : undefined}
+                playedTo={viewIdx > 0 ? moveSquares[viewIdx - 1]?.to : undefined}
+                mateSquare={mateSquare}
+                boardWidth={boardWidth}
+                boardOrientation={orientation}
+                onPieceDrop={onDrop}
+              />
+            </div>
+            <CapturedTray info={captured} side={bottomSide} />
           </div>
         </div>
         <div className="nav">

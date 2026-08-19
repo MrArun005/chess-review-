@@ -37,7 +37,7 @@ FEN + played move + engine PV
 | `src/engine/` | Stockfish (WASM) in a worker, promise-wrapped `analyze(fen, depth, multipv)`, UCI parsing, IndexedDB cache |
 | `src/review/` | PGN → per-ply pipeline, win% math, move classification, game accuracy, opening detection, game import |
 | `src/brain/` | The fact extractor: geometric motif detectors, positional feature diff, the rule DSL, template rendering |
-| `src/ui/` | Board, eval bar, eval graph, move list, move-detail panel, summary, key moments, **drag-to-explore** (try your own move and get the engine's reply), **analysis board** (set up any FEN and explore it), **Play vs Engine** (Stockfish with adjustable strength, hint/takeback/flip/live coach, then review the game), a **cross-game weakness coach** (recurring mistake themes across your reviewed games), an under-promotion picker, and **move sounds** (Web Audio, with a mute toggle) |
+| `src/ui/` | Board, eval bar, eval graph, move list, move-detail panel, summary, key moments, **captured-pieces trays with a material-advantage badge** (`+1`/`+2`/…), **drag-to-explore** (try your own move and get the engine's reply), **analysis board** (set up any FEN and explore it), **Play vs Engine** (Stockfish with adjustable strength, a hint at the top of the board, takeback/flip/live coach, then review the game), a **cross-game weakness coach** (recurring mistake themes across your reviewed games), an under-promotion picker, and **move sounds** (Web Audio, with a mute toggle) |
 | `eval/` | Hand-labelled positions + a metrics harness for motif coverage |
 
 ### Core ideas worth knowing
