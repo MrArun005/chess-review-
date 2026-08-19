@@ -5,15 +5,17 @@
  *
  * Everything is derived from the FEN (start material minus what's on the board),
  * so it needs no move history and stays correct as you step through a game.
+ *
+ * The piece icons are the exact same SVGs the board uses (react-chessboard's
+ * default set), so they look identical to the pieces in play.
  */
+import { PIECE_SVG } from './pieceSvgs';
 
 type PieceType = 'p' | 'n' | 'b' | 'r' | 'q';
 
 const ORDER: PieceType[] = ['q', 'r', 'b', 'n', 'p'];
 const START: Record<PieceType, number> = { p: 8, n: 2, b: 2, r: 2, q: 1 };
 const VALUE: Record<PieceType, number> = { p: 1, n: 3, b: 3, r: 5, q: 9 };
-// Solid silhouettes; tinted by owner via CSS so both colors read consistently.
-const GLYPH: Record<PieceType, string> = { p: '♟', n: '♞', b: '♝', r: '♜', q: '♛' };
 
 export interface CapturedInfo {
   /** Black pieces captured by White, by type. */
@@ -64,28 +66,31 @@ export function CapturedTray({ info, side, offset = 0 }: TrayProps) {
   const pieces = side === 'w' ? info.byWhite : info.byBlack;
   const advantage = side === 'w' ? info.net : -info.net;
 
-  const glyphs: string[] = [];
-  for (const t of ORDER) {
-    // U+FE0E forces monochrome *text* presentation so the glyph never renders
-    // as a coloured emoji (which is what made these look wrong on phones).
-    for (let i = 0; i < pieces[t]; i++) glyphs.push(GLYPH[t] + '\uFE0E');
-  }
+  // White's tray holds the Black pieces it captured (army 'b'), and vice-versa.
+  const army: 'w' | 'b' = side === 'w' ? 'b' : 'w';
 
-  // The silhouettes are the *captured* pieces, so their tint is the opponent's
-  // color: White's tray holds Black pieces (dark), Black's tray holds White (light).
-  const tint = side === 'w' ? 'dark' : 'light';
+  const svgs: string[] = [];
+  for (const t of ORDER) {
+    const svg = PIECE_SVG[army + t.toUpperCase()];
+    if (!svg) continue;
+    for (let i = 0; i < pieces[t]; i++) svgs.push(svg);
+  }
 
   // The row always reserves its height (so nothing jumps as pieces fall), but
   // the "plate" only appears once there's something to show.
-  const empty = glyphs.length === 0 && advantage <= 0;
+  const empty = svgs.length === 0 && advantage <= 0;
 
   return (
     <div className="captured" style={offset ? { transform: `translateX(${offset}px)` } : undefined}>
       {!empty && (
         <div className="captured-plate">
-          <span className={`captured-pieces ${tint}`}>
-            {glyphs.map((g, i) => (
-              <span key={i} className="captured-piece">{g}</span>
+          <span className="captured-pieces">
+            {svgs.map((svg, i) => (
+              <span
+                key={i}
+                className="captured-piece"
+                dangerouslySetInnerHTML={{ __html: svg }}
+              />
             ))}
           </span>
           {advantage > 0 && <span className="captured-adv">+{advantage}</span>}

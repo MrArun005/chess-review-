@@ -450,12 +450,13 @@ button.offline-ready {
   align-items: center;
   gap: 6px;
   max-width: 100%;
-  padding: 3px 6px 3px 11px;
-  background: var(--bg-2);
-  border: 1px solid var(--line-soft);
+  padding: 3px 8px 3px 8px;
+  /* A light "board-strip" background so both armies read like pieces on a light
+     square — a dark piece on a dark plate would vanish. */
+  background: #ece8dd;
+  border: 1px solid rgba(0, 0, 0, 0.18);
   border-radius: 999px;
   box-shadow: var(--shadow-sm);
-  font-size: 19px;
   line-height: 1;
 }
 .captured-pieces {
@@ -463,31 +464,28 @@ button.offline-ready {
   flex-wrap: wrap;
   align-items: center;
 }
+/* Each captured piece is one board SVG, shrunk down. */
 .captured-piece {
-  margin-right: -1px;
+  display: inline-block;
+  width: 21px;
+  height: 21px;
+  margin-right: -3px;
 }
-/* A real outline (fill + contrasting stroke) so each army reads clearly on both
-   the dark and light themes — a dark piece shows by its light outline on a dark
-   background, and vice-versa. */
-.captured-pieces.dark .captured-piece {
-  color: #2b2824;
-  -webkit-text-stroke: 0.9px #d7d2c6;
+.captured-piece svg {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
-.captured-pieces.light .captured-piece {
-  color: #f6f2ea;
-  -webkit-text-stroke: 0.9px #23211d;
-}
-/* Material lead — a small neutral chip so it reads at a glance. */
+/* Material lead — a small chip that reads on the light plate. */
 .captured-adv {
   font-size: 12px;
   font-weight: 750;
-  color: var(--text);
-  background: var(--bg-2);
-  border: 1px solid var(--line-soft);
+  color: #2a2723;
+  background: rgba(0, 0, 0, 0.08);
   border-radius: 999px;
-  padding: 1px 7px;
+  padding: 2px 7px;
   font-variant-numeric: tabular-nums;
-  margin-left: 6px;
+  margin-left: 5px;
 }
 
 /* ---------- cards ---------- */
