@@ -123,7 +123,9 @@ a {
 .app {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 22px 20px 60px;
+  /* Respect the iPhone notch / Dynamic Island and home indicator. */
+  padding: calc(22px + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right))
+    calc(60px + env(safe-area-inset-bottom)) calc(20px + env(safe-area-inset-left));
 }
 
 .masthead {
@@ -431,6 +433,46 @@ button.offline-ready {
 @media (max-width: 560px) {
   .weakness-row {
     grid-template-columns: minmax(0, 1fr) 70px 24px;
+  }
+
+  /* Tighter side padding → a wider board (still clears the safe area). */
+  .app {
+    padding-left: calc(12px + env(safe-area-inset-left));
+    padding-right: calc(12px + env(safe-area-inset-right));
+    padding-top: calc(14px + env(safe-area-inset-top));
+  }
+
+  /* Reclaim vertical space for the board on phones. */
+  .masthead {
+    margin-bottom: 12px;
+    gap: 10px;
+  }
+  .masthead h1 {
+    font-size: 20px;
+  }
+  .masthead .tag {
+    display: none; /* descriptive fluff — hide it on a phone */
+  }
+  .toolbar {
+    gap: 6px;
+    width: 100%;
+  }
+  .toolbar button {
+    padding: 7px 11px;
+    font-size: 13px;
+  }
+  .segmented {
+    flex: 1;
+  }
+  .segmented button {
+    flex: 1;
+    padding: 6px 10px;
+  }
+  .board-col {
+    gap: 8px;
+  }
+  .nav button {
+    min-width: 42px;
   }
 }
 
