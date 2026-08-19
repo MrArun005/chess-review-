@@ -373,16 +373,43 @@ button.offline-ready {
   gap: 2px;
 }
 /* The hint strip above the board (Play mode). */
-.top-hint {
-  text-align: center;
-  font-weight: 600;
-  font-size: 13.5px;
-  color: var(--accent-strong);
-  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+/* Fixed-height coach/hint panel above the board (Play mode). Reserving the
+   height means the move grade and hint text can come and go without the board
+   ever shifting — no more jerk when you move a pawn. */
+.coach-top {
+  /* Tall enough to hold the grade line + the hint line at once, so the panel
+     never grows when a grade appears (that growth was the board "jerk"). */
+  min-height: 74px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  background: var(--surface);
   border: 1px solid var(--line-soft);
-  border-radius: 8px;
-  padding: 7px 12px;
-  margin-bottom: 10px;
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
+  box-sizing: border-box;
+}
+.coach-top .coach-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+/* One line, ellipsised — a long explanation can't grow the panel and jerk the board. */
+.coach-top .coach-text {
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.coach-hint {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--accent-strong);
 }
 .board-wrap {
   /* Size to the square board — don't stretch past it. */

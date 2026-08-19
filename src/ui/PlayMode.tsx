@@ -346,21 +346,43 @@ export function PlayMode({ onReview }: Props) {
   const bottomSide: 'w' | 'b' = orientation === 'white' ? 'w' : 'b';
   const topSide: 'w' | 'b' = bottomSide === 'w' ? 'b' : 'w';
 
-  // The hint shown at the top of the board while it's your move.
-  const topHint = !result && isLive
-    ? yourTurn
-      ? coachSuggest
-        ? `Hint: play ${coachSuggest.san}`
-        : 'Your move.'
+  // Single status/hint line shown at the top of the board. It has a fixed slot
+  // (see .coach-top) so appearing/disappearing text can never shove the board.
+  const hintLine = result
+    ? result
+    : !isLive
+      ? 'Viewing an earlier move — press ⏭ to return to the game.'
       : thinking
         ? 'Engine is thinking…'
-        : null
-    : null;
+        : coachEnabled && coachBusy && !coachMove
+          ? 'Reviewing your move…'
+          : yourTurn
+            ? coachEnabled && coachSuggest
+              ? `Hint: play ${coachSuggest.san}`
+              : 'Your move.'
+            : started
+              ? 'Waiting…'
+              : 'Pick a strength and colour, then press New game.';
 
   return (
     <div className="review">
       <div>
-        {topHint && <div className="top-hint">{topHint}</div>}
+        {/* Coach + hint panel above the board. Fixed height → the board never
+            jumps as the move grade / hint text appears and disappears. */}
+        <div className="coach-top">
+          {coachEnabled && coachMove && (
+            <div className="coach-line">
+              <span className="coach-badge" style={{ background: CLASS_COLOR[coachMove.cls] }}>
+                {CLASS_LABEL[coachMove.cls]}
+              </span>
+              <span className="coach-text">
+                <b>{coachMove.san}</b>
+                {coachMove.text ? ` — ${coachMove.text}` : ''}
+              </span>
+            </div>
+          )}
+          <div className="coach-hint">{hintLine}</div>
+        </div>
         <div className="board-col" ref={boardCol}>
           <div className="board-stack">
             <CapturedTray info={captured} side={topSide} />
@@ -388,33 +410,6 @@ export function PlayMode({ onReview }: Props) {
           >→</button>
           <button onClick={() => setViewIdx(positions.length - 1)} disabled={isLive}>⏭</button>
         </div>
-        {!isLive && (
-          <p className="note" style={{ textAlign: 'center', marginTop: 6 }}>
-            Viewing an earlier move — jump to the latest position (⏭) to keep playing.
-          </p>
-        )}
-
-        {coachEnabled && (coachMove || coachSuggest || coachBusy) && (
-          <div className="coach">
-            {coachMove && (
-              <div className="coach-line">
-                <span className="coach-badge" style={{ background: CLASS_COLOR[coachMove.cls] }}>
-                  {CLASS_LABEL[coachMove.cls]}
-                </span>
-                <span>
-                  <b>{coachMove.san}</b>
-                  {coachMove.text ? ` — ${coachMove.text}` : ''}
-                </span>
-              </div>
-            )}
-            {!result && coachSuggest && (
-              <div className="note">
-                What to do now: play <b>{coachSuggest.san}</b>.
-              </div>
-            )}
-            {coachBusy && !coachMove && <div className="note">Looking at your move…</div>}
-          </div>
-        )}
       </div>
 
       <div className="side-col">
