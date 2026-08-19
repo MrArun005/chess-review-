@@ -440,23 +440,23 @@ button.offline-ready {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 32px;
+  min-height: 38px;
   padding: 3px 0;
 }
-/* The "plate": a rounded panel that holds the captured silhouettes + the
-   material lead, so it reads as an intentional element rather than loose glyphs. */
+/* The "plate": a rounded panel that holds the captured pieces + the material
+   lead, so it reads as an intentional element rather than loose glyphs. */
 .captured-plate {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   max-width: 100%;
-  padding: 3px 8px 3px 8px;
-  /* A light "board-strip" background so both armies read like pieces on a light
-     square — a dark piece on a dark plate would vanish. */
-  background: #ece8dd;
-  border: 1px solid rgba(0, 0, 0, 0.18);
+  padding: 4px 9px;
+  /* Board light-square tone so both armies read like pieces on a light square
+     (a dark piece on a dark plate would vanish). Subtle gradient for depth. */
+  background: linear-gradient(180deg, #f3f0e6 0%, #e6e1d3 100%);
+  border: 1px solid rgba(0, 0, 0, 0.22);
   border-radius: 999px;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.5);
   line-height: 1;
 }
 .captured-pieces {
@@ -464,28 +464,32 @@ button.offline-ready {
   flex-wrap: wrap;
   align-items: center;
 }
-/* Each captured piece is one board SVG, shrunk down. */
+/* Each captured piece is one board SVG, rendered crisply with a little depth. */
 .captured-piece {
   display: inline-block;
-  width: 21px;
-  height: 21px;
-  margin-right: -3px;
+  width: 26px;
+  height: 26px;
+  margin-right: -5px;
+}
+.captured-piece:last-child {
+  margin-right: 0;
 }
 .captured-piece svg {
   display: block;
   width: 100%;
   height: 100%;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
 }
-/* Material lead — a small chip that reads on the light plate. */
+/* Material lead — a chip that reads on the light plate. */
 .captured-adv {
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 750;
   color: #2a2723;
-  background: rgba(0, 0, 0, 0.08);
+  background: rgba(0, 0, 0, 0.1);
   border-radius: 999px;
-  padding: 2px 7px;
+  padding: 2px 8px;
   font-variant-numeric: tabular-nums;
-  margin-left: 5px;
+  margin-left: 4px;
 }
 
 /* ---------- cards ---------- */
