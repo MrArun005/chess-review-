@@ -435,6 +435,49 @@ button.offline-ready {
   gap: 14px;
 }
 
+/* ---------- online play ---------- */
+.online-menu {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+@media (max-width: 560px) {
+  .online-menu {
+    grid-template-columns: 1fr;
+  }
+}
+.online-field {
+  display: grid;
+  gap: 5px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.room-code {
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: 0.28em;
+  text-align: center;
+  padding: 14px 0 16px;
+  color: var(--accent-strong);
+  font-variant-numeric: tabular-nums;
+}
+/* Turn indicator above the online board. */
+.top-hint {
+  text-align: center;
+  font-weight: 650;
+  font-size: 14px;
+  color: var(--accent-strong);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  padding: 9px 12px;
+  margin-bottom: 12px;
+}
+.top-hint.muted {
+  color: var(--muted);
+  background: var(--surface);
+}
+
 /* ---------- board settings popover ---------- */
 .settings-wrap {
   position: relative;

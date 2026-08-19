@@ -10,6 +10,7 @@ import { Summary } from './ui/Summary';
 import { KeyMoments } from './ui/KeyMoments';
 import { EngineLines } from './ui/EngineLines';
 import { PlayMode } from './ui/PlayMode';
+import { OnlinePlay } from './ui/OnlinePlay';
 import { AnalyzeMode } from './ui/AnalyzeMode';
 import { OfflineButton } from './ui/OfflineButton';
 import { CapturedTray, computeCaptured } from './ui/Captured';
@@ -38,7 +39,7 @@ export function App() {
   const [pgn, setPgn] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [shareFallback, setShareFallback] = useState<string | null>(null);
-  const [mode, setMode] = useState<'review' | 'play'>('review');
+  const [mode, setMode] = useState<'review' | 'play' | 'online'>('review');
   const [analyzeFen, setAnalyzeFen] = useState<string | null>(null);
   const [training, setTraining] = useState(false);
   const [retry, setRetry] = useState<RetryState | null>(null);
@@ -331,6 +332,9 @@ export function App() {
             <button className={mode === 'play' ? 'active' : ''} onClick={() => setMode('play')}>
               Play
             </button>
+            <button className={mode === 'online' ? 'active' : ''} onClick={() => setMode('online')}>
+              Online
+            </button>
           </div>
           <OfflineButton />
           <BoardSettingsMenu />
@@ -370,6 +374,8 @@ export function App() {
           }}
         />
       )}
+
+      {mode === 'online' && <OnlinePlay />}
 
       {mode === 'review' && analyzeFen && (
         <AnalyzeMode
