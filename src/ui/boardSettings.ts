@@ -7,7 +7,7 @@ import { useSyncExternalStore } from 'react';
  * and the puzzle trainer all pick up a change at once.
  */
 
-export type ThemeKey = 'green' | 'wood' | 'blue' | 'slate';
+export type ThemeKey = 'green' | 'wood' | 'blue' | 'slate' | 'venom' | 'asgard';
 
 export interface Theme {
   name: string;
@@ -20,6 +20,10 @@ export const THEMES: Record<ThemeKey, Theme> = {
   wood: { name: 'Wood', light: '#f0d9b5', dark: '#b58863' },
   blue: { name: 'Blue', light: '#dee3e6', dark: '#8ca2ad' },
   slate: { name: 'Slate', light: '#dcdcd4', dark: '#5f6b7a' },
+  // Venom / Spider-Man — web silver + spider red.
+  venom: { name: 'Venom', light: '#d8cfd6', dark: '#7d1f2b' },
+  // Thor / Asgard — Asgardian gold + royal blue.
+  asgard: { name: 'Asgard', light: '#e8cf78', dark: '#274a86' },
 };
 
 export interface BoardSettings {
