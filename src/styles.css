@@ -451,25 +451,31 @@ button.offline-ready {
   flex-wrap: wrap;
   align-items: center;
 }
-/* Overlap the silhouettes slightly, chess.com style. */
 .captured-piece {
-  margin-right: -5px;
+  margin-right: -1px;
 }
+/* A real outline (fill + contrasting stroke) so each army reads clearly on both
+   the dark and light themes — a dark piece shows by its light outline on a dark
+   background, and vice-versa. */
 .captured-pieces.dark .captured-piece {
-  color: #56534c;
-  text-shadow: 0 0 1px rgba(255, 255, 255, 0.3);
+  color: #2b2824;
+  -webkit-text-stroke: 0.9px #d7d2c6;
 }
 .captured-pieces.light .captured-piece {
-  color: #f4f1e8;
-  /* Dark outline so the light silhouettes read on a light theme too. */
-  text-shadow: 0 0 1px rgba(0, 0, 0, 0.7), 0 1px 1px rgba(0, 0, 0, 0.35);
+  color: #f6f2ea;
+  -webkit-text-stroke: 0.9px #23211d;
 }
+/* Material lead — a small neutral chip so it reads at a glance. */
 .captured-adv {
-  font-size: 12.5px;
-  font-weight: 700;
-  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+  color: var(--text);
+  background: var(--bg-2);
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  padding: 1px 7px;
   font-variant-numeric: tabular-nums;
-  margin-left: 4px;
+  margin-left: 6px;
 }
 
 /* ---------- cards ---------- */

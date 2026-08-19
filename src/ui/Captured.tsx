@@ -66,7 +66,9 @@ export function CapturedTray({ info, side, offset = 0 }: TrayProps) {
 
   const glyphs: string[] = [];
   for (const t of ORDER) {
-    for (let i = 0; i < pieces[t]; i++) glyphs.push(GLYPH[t]);
+    // U+FE0E forces monochrome *text* presentation so the glyph never renders
+    // as a coloured emoji (which is what made these look wrong on phones).
+    for (let i = 0; i < pieces[t]; i++) glyphs.push(GLYPH[t] + '\uFE0E');
   }
 
   // The silhouettes are the *captured* pieces, so their tint is the opponent's
