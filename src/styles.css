@@ -121,7 +121,7 @@ a {
 
 /* ---------- shell ---------- */
 .app {
-  max-width: 1400px;
+  max-width: 1600px;
   margin: 0 auto;
   /* Respect the iPhone notch / Dynamic Island and home indicator. */
   padding: calc(22px + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right))
@@ -326,14 +326,27 @@ button.offline-ready {
 /* ---------- review layout ---------- */
 .review {
   display: grid;
-  /* minmax(0, ...) lets the column shrink below the board's pixel width instead
-     of the track expanding to it and pushing the last files off-screen. */
-  grid-template-columns: minmax(0, 1fr) 372px;
+  /* Left gutter (::before) matches the 372px sidebar so the middle board column
+     is centred in the viewport, with the board centred inside it. minmax(0, ...)
+     lets tracks shrink instead of pushing the last files off-screen. */
+  grid-template-columns: minmax(0, 372px) minmax(0, 1fr) 372px;
   gap: 20px;
   align-items: start;
 }
+.review::before {
+  content: '';
+}
 .review > * {
   min-width: 0;
+}
+@media (max-width: 1100px) {
+  /* Not enough width to spend on a gutter — drop it, keep the board big. */
+  .review {
+    grid-template-columns: minmax(0, 1fr) 372px;
+  }
+  .review::before {
+    display: none;
+  }
 }
 @media (max-width: 900px) {
   .review {
