@@ -435,6 +435,88 @@ button.offline-ready {
   gap: 14px;
 }
 
+/* ---------- play mode: player bars ---------- */
+.player-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+  min-height: 34px;
+  padding: 2px 2px;
+  margin: 0 auto;
+}
+.player-name {
+  font-weight: 650;
+  font-size: 14px;
+  flex: 0 0 auto;
+}
+.player-captured {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+/* Inside a player bar the captured plate hugs the left, not centred. */
+.player-bar .captured {
+  justify-content: flex-start;
+  min-height: 0;
+  padding: 0;
+}
+.player-clock {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 15px;
+  padding: 3px 10px;
+  border-radius: 8px;
+  background: var(--bg-2);
+  border: 1px solid var(--line-soft);
+  color: var(--muted);
+}
+.player-clock.run {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface));
+}
+
+/* ---------- modal (game over) ---------- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 20px;
+}
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 22px;
+  max-width: 380px;
+  width: 100%;
+  text-align: center;
+}
+.modal-title {
+  font-size: 20px;
+  font-weight: 750;
+  margin-bottom: 6px;
+}
+.modal-result {
+  color: var(--muted);
+  margin: 0 0 16px;
+}
+.modal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.modal-actions button {
+  width: 100%;
+}
+
 /* ---------- puzzle trainer ---------- */
 .puzzle-head {
   display: flex;

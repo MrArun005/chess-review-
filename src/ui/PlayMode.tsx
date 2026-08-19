@@ -9,7 +9,7 @@ import { extractFacts } from '../brain/facts';
 import { explain } from '../brain/engine';
 import { explainStrength } from '../brain/positive';
 import { sound } from './sound';
-import { CapturedTray, computeCaptured } from './Captured';
+import { CapturedTray, computeCaptured, type CapturedInfo } from './Captured';
 
 /** Depth for the live coach analyses (kept modest so play stays responsive). */
 const COACH_DEPTH = 12;
@@ -50,11 +50,17 @@ export function PlayMode({ onReview }: Props) {
   const [result, setResult] = useState<string | null>(null);
   const [userColor, setUserColor] = useState<Color>('w');
   const [orientation, setOrientation] = useState<'white' | 'black'>('white');
-  const [levelIdx, setLevelIdx] = useState(2);
+  // Default to Easy (~1200): winnable, and the engine makes mistakes to punish.
+  const [levelIdx, setLevelIdx] = useState(1);
   const [colorChoice, setColorChoice] = useState<'w' | 'b' | 'random'>('w');
   const [hintUci, setHintUci] = useState<string | null>(null);
   const [premove, setPremove] = useState<{ from: string; to: string } | null>(null);
   const [boardWidth, setBoardWidth] = useState(440);
+
+  // Clock (optional). timeControl is seconds per side; 0 = no clock.
+  const [timeControl, setTimeControl] = useState(600);
+  const [clock, setClock] = useState<{ w: number; b: number }>({ w: 600000, b: 600000 });
+  const [resultDismissed, setResultDismissed] = useState(false);
 
   // Live coach.
   const [coachEnabled, setCoachEnabled] = useState(true);
@@ -72,6 +78,31 @@ export function PlayMode({ onReview }: Props) {
   userColorRef.current = userColor;
   const liveRef = useRef(isLive);
   liveRef.current = isLive;
+  const resultRef = useRef(result);
+  resultRef.current = result;
+
+  // Clock: tick down the side-to-move's time while the live game is running.
+  useEffect(() => {
+    if (timeControl === 0) return;
+    const id = window.setInterval(() => {
+      if (resultRef.current || !liveRef.current) return;
+      const g = gameRef.current;
+      if (g.isGameOver() || g.history().length === 0) return;
+      const t = g.turn() === 'w' ? 'w' : 'b';
+      setClock((c) => (c[t] <= 0 ? c : { ...c, [t]: Math.max(0, c[t] - 100) }));
+    }, 100);
+    return () => window.clearInterval(id);
+  }, [timeControl]);
+
+  // Flag: whoever runs out of time loses.
+  useEffect(() => {
+    if (timeControl === 0 || result) return;
+    const flagged = clock.w <= 0 ? 'w' : clock.b <= 0 ? 'b' : null;
+    if (!flagged) return;
+    const winner = flagged === 'w' ? 'Black' : 'White';
+    const youLost = flagged === userColorRef.current;
+    setResult(`Time — ${winner} wins${youLost ? '.' : '. You win! 🎉'}`);
+  }, [clock, result, timeControl]);
 
   const boardCol = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -232,11 +263,13 @@ export function PlayMode({ onReview }: Props) {
       userColorRef.current = color;
       setOrientation(color === 'w' ? 'white' : 'black');
       setResult(null);
+      setResultDismissed(false);
       setHintUci(null);
       setPremove(null);
       setThinking(false);
       setCoachMove(null);
       setCoachSuggest(null);
+      setClock({ w: timeControl * 1000, b: timeControl * 1000 });
       lastUserAnalysisRef.current = null;
       setPositions([gameRef.current.fen()]);
       setMoveSquares([]);
@@ -244,7 +277,7 @@ export function PlayMode({ onReview }: Props) {
       setViewIdx(0);
       if (color === 'b') void engineMove(); // engine (White) moves first
     },
-    [engineMove]
+    [engineMove, timeControl]
   );
 
   const onDrop = useCallback(
@@ -357,6 +390,9 @@ export function PlayMode({ onReview }: Props) {
   const captured = computeCaptured(positions[viewIdx]);
   const bottomSide: 'w' | 'b' = orientation === 'white' ? 'w' : 'b';
   const topSide: 'w' | 'b' = bottomSide === 'w' ? 'b' : 'w';
+  // Whose clock is running right now (null when paused / game over / browsing).
+  const liveTurn: 'w' | 'b' | null =
+    !result && isLive && started ? (gameRef.current.turn() === 'w' ? 'w' : 'b') : null;
 
   // Single status/hint line shown at the top of the board. It has a fixed slot
   // (see .coach-top) so appearing/disappearing text can never shove the board.
@@ -397,7 +433,15 @@ export function PlayMode({ onReview }: Props) {
         </div>
         <div className="board-col" ref={boardCol}>
           <div className="board-stack">
-            <CapturedTray info={captured} side={topSide} />
+            <PlayerBar
+              name={topSide === userColor ? 'You' : 'Engine'}
+              side={topSide}
+              captured={captured}
+              ms={clock[topSide]}
+              active={liveTurn === topSide}
+              showClock={timeControl > 0}
+              width={boardWidth}
+            />
             <div className="board-wrap">
               <Board
                 fen={positions[viewIdx]}
@@ -416,7 +460,15 @@ export function PlayMode({ onReview }: Props) {
                 onCancelPremove={() => setPremove(null)}
               />
             </div>
-            <CapturedTray info={captured} side={bottomSide} />
+            <PlayerBar
+              name={bottomSide === userColor ? 'You' : 'Engine'}
+              side={bottomSide}
+              captured={captured}
+              ms={clock[bottomSide]}
+              active={liveTurn === bottomSide}
+              showClock={timeControl > 0}
+              width={boardWidth}
+            />
           </div>
         </div>
         <div className="nav">
@@ -488,6 +540,15 @@ export function PlayMode({ onReview }: Props) {
                 <option value="random">Random</option>
               </select>
             </label>
+            <label>
+              Clock
+              <select value={timeControl} onChange={(e) => setTimeControl(Number(e.target.value))}>
+                <option value={0}>No clock</option>
+                <option value={180}>3 min</option>
+                <option value={300}>5 min</option>
+                <option value={600}>10 min</option>
+              </select>
+            </label>
           </div>
           <button className="primary" style={{ marginTop: 10 }} onClick={() => newGame(colorChoice)}>
             New game
@@ -509,8 +570,61 @@ export function PlayMode({ onReview }: Props) {
           </div>
         )}
       </div>
+
+      {result && !resultDismissed && (
+        <div className="modal-overlay" onClick={() => setResultDismissed(true)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-title">
+              {/\bwin\b/i.test(result) && result.includes('🎉') ? '🎉 You win!' : 'Game over'}
+            </div>
+            <p className="modal-result">{result}</p>
+            <div className="modal-actions">
+              <button className="primary" onClick={() => newGame(colorChoice)}>
+                ↻ Rematch
+              </button>
+              <button onClick={() => onReview(gameRef.current.pgn())}>🔍 Review game</button>
+              <button onClick={() => setResultDismissed(true)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
+}
+
+/** A player row above/below the board: name, the pieces they've captured, clock. */
+function PlayerBar({
+  name,
+  side,
+  captured,
+  ms,
+  active,
+  showClock,
+  width,
+}: {
+  name: string;
+  side: 'w' | 'b';
+  captured: CapturedInfo;
+  ms: number;
+  active: boolean;
+  showClock: boolean;
+  width: number;
+}) {
+  return (
+    <div className="player-bar" style={{ width }}>
+      <span className="player-name">{name}</span>
+      <div className="player-captured">
+        <CapturedTray info={captured} side={side} />
+      </div>
+      {showClock && <span className={`player-clock ${active ? 'run' : ''}`}>{fmtClock(ms)}</span>}
+    </div>
+  );
+}
+
+function fmtClock(ms: number): string {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  const m = Math.floor(s / 60);
+  return `${m}:${(s % 60).toString().padStart(2, '0')}`;
 }
 
 function MoveCell({
