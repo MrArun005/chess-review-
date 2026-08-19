@@ -2,6 +2,7 @@ import { useMemo, useState, type ComponentProps } from 'react';
 import { Chessboard } from 'react-chessboard';
 import { Chess } from 'chess.js';
 import { CLASS_COLOR, CLASS_ICON, type MoveClass } from '../review/classify';
+import { useBoardSettings, THEMES } from './boardSettings';
 
 type Arrows = ComponentProps<typeof Chessboard>['customArrows'];
 
@@ -56,6 +57,8 @@ export function Board({
   onCancelPremove,
 }: Props) {
   const [selected, setSelected] = useState<string | null>(null);
+  const { theme, coords } = useBoardSettings();
+  const palette = THEMES[theme];
 
   const arrows: [string, string, string][] = [];
   if (bestUci && bestUci.length >= 4) {
@@ -170,9 +173,10 @@ export function Board({
           if (!piece || !from || !to) return false;
           return commit(from, to, piece[1].toLowerCase());
         }}
+        showBoardNotation={coords}
         customBoardStyle={{ borderRadius: '6px' }}
-        customDarkSquareStyle={{ backgroundColor: '#769656' }}
-        customLightSquareStyle={{ backgroundColor: '#eeeed2' }}
+        customDarkSquareStyle={{ backgroundColor: palette.dark }}
+        customLightSquareStyle={{ backgroundColor: palette.light }}
       />
       {badge && (
         <MoveBadge

@@ -22,6 +22,7 @@ import { recordGame } from './review/weakness';
 import { Weakness } from './ui/Weakness';
 import { buildPuzzles } from './review/puzzles';
 import { PuzzleTrainer } from './ui/PuzzleTrainer';
+import { BoardSettingsMenu } from './ui/BoardSettingsMenu';
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -251,6 +252,7 @@ export function App() {
             </button>
           </div>
           <OfflineButton />
+          <BoardSettingsMenu />
           <button
             onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
             title="Toggle light / dark theme"

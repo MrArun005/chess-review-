@@ -435,6 +435,64 @@ button.offline-ready {
   gap: 14px;
 }
 
+/* ---------- board settings popover ---------- */
+.settings-wrap {
+  position: relative;
+  display: inline-flex;
+}
+.settings-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 40;
+  width: 210px;
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+.settings-label {
+  font-size: 11px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--faint);
+}
+.theme-swatches {
+  display: flex;
+  gap: 8px;
+}
+.swatch {
+  width: 40px;
+  height: 30px;
+  padding: 0;
+  border-radius: 7px;
+  overflow: hidden;
+  display: flex;
+  border: 2px solid transparent;
+}
+.swatch span {
+  flex: 1;
+}
+.swatch.active {
+  border-color: var(--accent);
+}
+.settings-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+.settings-check input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+
 /* ---------- play mode: player bars ---------- */
 .player-bar {
   display: flex;
