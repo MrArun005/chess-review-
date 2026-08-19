@@ -59,16 +59,25 @@ export function App() {
   const analyze = useAnalysisEngine();
   const { explore, tryMove, reset: resetExplore } = useExplore(analyze);
 
-  // Responsive board sizing.
+  // Responsive board sizing — grow to fill the screen. A board is square, so
+  // the limit is whichever is smaller: the column width or the viewport height
+  // (minus room for the masthead + nav below it).
   useEffect(() => {
     const el = boardCol.current;
     if (!el) return;
-    const ro = new ResizeObserver(() => {
-      const w = el.clientWidth - 34; // leave room for the eval bar + gap
-      setBoardWidth(Math.max(240, Math.min(560, w)));
-    });
+    const compute = () => {
+      const colW = el.clientWidth - 34; // leave room for the eval bar + gap
+      const viewH = window.innerHeight - 200;
+      setBoardWidth(Math.max(240, Math.min(880, colW, viewH)));
+    };
+    const ro = new ResizeObserver(compute);
     ro.observe(el);
-    return () => ro.disconnect();
+    window.addEventListener('resize', compute);
+    compute();
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', compute);
+    };
   }, [result]);
 
   const startReview = useCallback(

@@ -75,11 +75,18 @@ export function PlayMode({ onReview }: Props) {
   useEffect(() => {
     const el = boardCol.current;
     if (!el) return;
-    const ro = new ResizeObserver(() => {
-      setBoardWidth(Math.max(240, Math.min(560, el.clientWidth)));
-    });
+    const compute = () => {
+      const viewH = window.innerHeight - 200;
+      setBoardWidth(Math.max(240, Math.min(880, el.clientWidth, viewH)));
+    };
+    const ro = new ResizeObserver(compute);
     ro.observe(el);
-    return () => ro.disconnect();
+    window.addEventListener('resize', compute);
+    compute();
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', compute);
+    };
   }, []);
 
   const getEngine = getSharedEngine;

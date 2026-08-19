@@ -33,11 +33,19 @@ export function AnalyzeMode({ fen, analyze, onExit }: Props) {
   useEffect(() => {
     const el = boardCol.current;
     if (!el) return;
-    const ro = new ResizeObserver(() => {
-      setBoardWidth(Math.max(240, Math.min(560, el.clientWidth - 34)));
-    });
+    const compute = () => {
+      const colW = el.clientWidth - 34;
+      const viewH = window.innerHeight - 200;
+      setBoardWidth(Math.max(240, Math.min(880, colW, viewH)));
+    };
+    const ro = new ResizeObserver(compute);
     ro.observe(el);
-    return () => ro.disconnect();
+    window.addEventListener('resize', compute);
+    compute();
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', compute);
+    };
   }, []);
 
   const runAnalysis = useCallback(

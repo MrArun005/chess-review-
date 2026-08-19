@@ -121,7 +121,7 @@ a {
 
 /* ---------- shell ---------- */
 .app {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
   padding: 22px 20px 60px;
 }
@@ -343,9 +343,13 @@ button.offline-ready {
   display: flex;
   gap: 12px;
   align-items: stretch;
+  /* When the board is capped by viewport height it's narrower than the column,
+     so center it instead of leaving dead space on the right. */
+  justify-content: center;
 }
 .board-wrap {
-  flex: 1;
+  /* Size to the square board — don't stretch past it. */
+  flex: 0 0 auto;
   min-width: 0;
   border-radius: 10px;
   overflow: hidden;
