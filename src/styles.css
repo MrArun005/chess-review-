@@ -435,6 +435,59 @@ button.offline-ready {
   gap: 14px;
 }
 
+/* ---------- puzzle trainer ---------- */
+.puzzle-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.puzzle-feedback {
+  margin-top: 10px;
+  padding: 9px 11px;
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+  border-left: 3px solid var(--line);
+  background: var(--bg-2);
+}
+.puzzle-feedback.right {
+  border-left-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+}
+.puzzle-feedback.wrong {
+  border-left-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 14%, var(--surface));
+}
+.puzzle-feedback.reveal {
+  border-left-color: var(--blue, #6f9bd0);
+}
+.puzzle-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.puzzle-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.puzzle-chip {
+  min-width: 34px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.puzzle-chip.active {
+  border-color: var(--accent);
+  color: var(--text);
+}
+.puzzle-chip.done {
+  background: color-mix(in srgb, var(--accent) 22%, var(--surface));
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+}
+
 /* ---------- captured pieces + material advantage ---------- */
 .captured {
   display: flex;

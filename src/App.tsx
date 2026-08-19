@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Chess } from 'chess.js';
 import { Intake } from './ui/Intake';
 import { Board } from './ui/Board';
@@ -20,6 +20,8 @@ import { exportSummaryPng, shareLink, pgnFromHash, copyText } from './ui/exportI
 import { reviewGame, type ReviewResult, type ReviewProgress } from './review/pipeline';
 import { recordGame } from './review/weakness';
 import { Weakness } from './ui/Weakness';
+import { buildPuzzles } from './review/puzzles';
+import { PuzzleTrainer } from './ui/PuzzleTrainer';
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -36,6 +38,7 @@ export function App() {
   const [shareFallback, setShareFallback] = useState<string | null>(null);
   const [mode, setMode] = useState<'review' | 'play'>('review');
   const [analyzeFen, setAnalyzeFen] = useState<string | null>(null);
+  const [training, setTraining] = useState(false);
   const [flipped, setFlipped] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     try {
@@ -93,6 +96,7 @@ export function App() {
       setResult(null);
       setProgress(null);
       setReviewing(true);
+      setTraining(false);
       setCurrent(-1);
 
       try {
@@ -128,9 +132,11 @@ export function App() {
     setError(null);
     setProgress(null);
     setReviewing(false);
+    setTraining(false);
   };
 
   const moveCount = result?.moves.length ?? 0;
+  const puzzles = useMemo(() => (result ? buildPuzzles(result) : []), [result]);
 
   // Navigate the reviewed game; any navigation exits exploration.
   const goTo = useCallback(
@@ -254,6 +260,15 @@ export function App() {
           {mode === 'review' && result && (
             <>
               <button onClick={reset}>← New game</button>
+              {puzzles.length > 0 && (
+                <button
+                  onClick={() => setTraining((t) => !t)}
+                  className={training ? 'active' : ''}
+                  title="Replay your mistakes as puzzles"
+                >
+                  🧩 Train {puzzles.length}
+                </button>
+              )}
               <button onClick={toggleMute}>{muted ? '🔇 Sound' : '🔊 Sound'}</button>
               <button onClick={copyLink} disabled={!pgn}>
                 {copied ? '✓ Copied' : '🔗 Share'}
@@ -317,7 +332,11 @@ export function App() {
         </div>
       )}
 
-      {mode === 'review' && result && (
+      {mode === 'review' && result && training && (
+        <PuzzleTrainer puzzles={puzzles} onExit={() => setTraining(false)} />
+      )}
+
+      {mode === 'review' && result && !training && (
         <>
           {shareFallback && (
             <div className="share-fallback">
