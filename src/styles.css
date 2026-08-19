@@ -440,9 +440,21 @@ button.offline-ready {
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: 32px;
+  padding: 3px 0;
+}
+/* The "plate": a rounded panel that holds the captured silhouettes + the
+   material lead, so it reads as an intentional element rather than loose glyphs. */
+.captured-plate {
+  display: inline-flex;
+  align-items: center;
   gap: 6px;
-  min-height: 24px;
-  padding: 2px;
+  max-width: 100%;
+  padding: 3px 6px 3px 11px;
+  background: var(--bg-2);
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  box-shadow: var(--shadow-sm);
   font-size: 19px;
   line-height: 1;
 }

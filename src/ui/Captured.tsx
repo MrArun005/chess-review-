@@ -75,15 +75,22 @@ export function CapturedTray({ info, side, offset = 0 }: TrayProps) {
   // color: White's tray holds Black pieces (dark), Black's tray holds White (light).
   const tint = side === 'w' ? 'dark' : 'light';
 
-  // Always render the row (reserves height, so nothing jumps as pieces fall).
+  // The row always reserves its height (so nothing jumps as pieces fall), but
+  // the "plate" only appears once there's something to show.
+  const empty = glyphs.length === 0 && advantage <= 0;
+
   return (
     <div className="captured" style={offset ? { transform: `translateX(${offset}px)` } : undefined}>
-      <span className={`captured-pieces ${tint}`}>
-        {glyphs.map((g, i) => (
-          <span key={i} className="captured-piece">{g}</span>
-        ))}
-      </span>
-      {advantage > 0 && <span className="captured-adv">+{advantage}</span>}
+      {!empty && (
+        <div className="captured-plate">
+          <span className={`captured-pieces ${tint}`}>
+            {glyphs.map((g, i) => (
+              <span key={i} className="captured-piece">{g}</span>
+            ))}
+          </span>
+          {advantage > 0 && <span className="captured-adv">+{advantage}</span>}
+        </div>
+      )}
     </div>
   );
 }
