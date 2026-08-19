@@ -53,6 +53,7 @@ export function PlayMode({ onReview }: Props) {
   const [levelIdx, setLevelIdx] = useState(2);
   const [colorChoice, setColorChoice] = useState<'w' | 'b' | 'random'>('w');
   const [hintUci, setHintUci] = useState<string | null>(null);
+  const [premove, setPremove] = useState<{ from: string; to: string } | null>(null);
   const [boardWidth, setBoardWidth] = useState(440);
 
   // Live coach.
@@ -232,6 +233,7 @@ export function PlayMode({ onReview }: Props) {
       setOrientation(color === 'w' ? 'white' : 'black');
       setResult(null);
       setHintUci(null);
+      setPremove(null);
       setThinking(false);
       setCoachMove(null);
       setCoachSuggest(null);
@@ -289,8 +291,18 @@ export function PlayMode({ onReview }: Props) {
     if (g.turn() !== userColorRef.current && g.history().length > 0) g.undo();
     setResult(null);
     setCoachMove(null);
+    setPremove(null);
     rebuild();
   };
+
+  // Execute a queued premove as soon as it becomes the user's turn.
+  useEffect(() => {
+    if (!premove || thinking || result || !isLive) return;
+    if (gameRef.current.turn() !== userColorRef.current) return;
+    const { from, to } = premove;
+    setPremove(null);
+    onDrop(from, to); // discarded automatically if it's no longer legal
+  }, [premove, thinking, result, isLive, onDrop]);
 
   const hint = async () => {
     if (thinking || gameRef.current.isGameOver()) return;
@@ -396,6 +408,12 @@ export function PlayMode({ onReview }: Props) {
                 boardWidth={boardWidth}
                 boardOrientation={orientation}
                 onPieceDrop={onDrop}
+                userColor={userColor}
+                premove={premove}
+                onPremove={
+                  isLive && !result ? (from, to) => setPremove({ from, to }) : undefined
+                }
+                onCancelPremove={() => setPremove(null)}
               />
             </div>
             <CapturedTray info={captured} side={bottomSide} />

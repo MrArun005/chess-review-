@@ -1,5 +1,6 @@
-import type { ComponentProps } from 'react';
+import { useMemo, useState, type ComponentProps } from 'react';
 import { Chessboard } from 'react-chessboard';
+import { Chess } from 'chess.js';
 import { CLASS_COLOR, CLASS_ICON, type MoveClass } from '../review/classify';
 
 type Arrows = ComponentProps<typeof Chessboard>['customArrows'];
@@ -19,11 +20,23 @@ interface Props {
   boardWidth: number;
   boardOrientation?: 'white' | 'black';
   /**
-   * Called when a piece is dropped. `promotion` is the chosen piece
-   * ('q' | 'r' | 'b' | 'n') when the move is a pawn promotion, else undefined.
-   * Return true to accept the move (piece stays), false to snap it back.
+   * Called when a piece is dropped/clicked into place. `promotion` is the chosen
+   * piece ('q' | 'r' | 'b' | 'n') for a pawn promotion, else undefined. Return
+   * true to accept the move (piece stays), false to snap it back.
    */
   onPieceDrop?: (from: string, to: string, promotion?: string) => boolean;
+  /**
+   * The colour the user controls. When set, only that colour's pieces are
+   * draggable/selectable, and a move made while it is NOT that colour's turn is
+   * emitted as a *premove* (see onPremove) instead of played immediately.
+   */
+  userColor?: 'w' | 'b';
+  /** A queued premove to highlight, if any. */
+  premove?: { from: string; to: string } | null;
+  /** Called when the user queues a premove (during the opponent's turn). */
+  onPremove?: (from: string, to: string) => void;
+  /** Called on right-click — used to cancel a queued premove. */
+  onCancelPremove?: () => void;
 }
 
 export function Board({
@@ -37,16 +50,101 @@ export function Board({
   boardWidth,
   boardOrientation = 'white',
   onPieceDrop,
+  userColor,
+  premove,
+  onPremove,
+  onCancelPremove,
 }: Props) {
+  const [selected, setSelected] = useState<string | null>(null);
+
   const arrows: [string, string, string][] = [];
   if (bestUci && bestUci.length >= 4) {
     arrows.push([bestUci.slice(0, 2), bestUci.slice(2, 4), CLASS_COLOR.best]);
   }
 
+  const interactive = Boolean(onPieceDrop);
+  const turn: 'w' | 'b' = fen.split(/\s+/)[1] === 'b' ? 'b' : 'w';
+  // Premove mode: the user may move, but it isn't their turn yet.
+  const premoveMode = Boolean(userColor && onPremove && turn !== userColor);
+  // Whose pieces the user may pick up right now.
+  const activeColor: 'w' | 'b' = premoveMode ? (userColor as 'w' | 'b') : turn;
+
+  const board = useMemo(() => {
+    try {
+      return new Chess(fen);
+    } catch {
+      return null;
+    }
+  }, [fen]);
+
+  // Legal destinations for the selected piece (for the move dots). In premove
+  // mode the target isn't restricted (the position will have changed), so we
+  // skip the dots there.
+  const dests = useMemo(() => {
+    if (!selected || !board || premoveMode) return [] as string[];
+    try {
+      return board.moves({ square: selected as never, verbose: true }).map((m) => m.to as string);
+    } catch {
+      return [] as string[];
+    }
+  }, [selected, board, premoveMode]);
+
+  const ownsPiece = (square: string): boolean => {
+    const p = board?.get(square as never);
+    return !!p && p.color === activeColor;
+  };
+
+  const isPromotion = (from: string, to: string): boolean => {
+    const p = board?.get(from as never);
+    if (!p || p.type !== 'p') return false;
+    return (p.color === 'w' && to[1] === '8') || (p.color === 'b' && to[1] === '1');
+  };
+
+  /** Play a move immediately, or queue it as a premove if it isn't our turn. */
+  const commit = (from: string, to: string, promo?: string): boolean => {
+    if (premoveMode) {
+      onPremove?.(from, to);
+      return false; // snap back; the premove highlight shows it's queued
+    }
+    return onPieceDrop?.(from, to, promo) ?? false;
+  };
+
+  const handleSquareClick = (square: string) => {
+    if (!interactive) return;
+    if (selected) {
+      if (square === selected) {
+        setSelected(null);
+        return;
+      }
+      // Clicking another of your own pieces re-selects it.
+      if (ownsPiece(square)) {
+        setSelected(square);
+        return;
+      }
+      // Otherwise treat as the destination (any square in premove mode).
+      if (premoveMode || dests.includes(square)) {
+        commit(selected, square, isPromotion(selected, square) ? 'q' : undefined);
+      }
+      setSelected(null);
+      return;
+    }
+    if (ownsPiece(square)) setSelected(square);
+  };
+
   const squareStyles: Record<string, React.CSSProperties> = {};
   const highlight = playedClass ? CLASS_COLOR[playedClass] : '#e5c14c';
   if (playedFrom) squareStyles[playedFrom] = tint(highlight);
   if (playedTo) squareStyles[playedTo] = tint(highlight);
+  // Selected square + legal-move dots for click-to-move.
+  if (selected) squareStyles[selected] = { ...squareStyles[selected], ...tint('#e5c14c') };
+  for (const d of dests) {
+    squareStyles[d] = { ...squareStyles[d], ...dot(Boolean(board?.get(d as never))) };
+  }
+  // Queued premove highlight.
+  if (premove) {
+    squareStyles[premove.from] = { ...squareStyles[premove.from], ...tint('#5a9bd4') };
+    squareStyles[premove.to] = { ...squareStyles[premove.to], ...tint('#5a9bd4') };
+  }
 
   return (
     <div style={{ position: 'relative', width: boardWidth, height: boardWidth }}>
@@ -56,13 +154,21 @@ export function Board({
         boardOrientation={boardOrientation}
         customArrows={arrows as Arrows}
         customSquareStyles={squareStyles}
-        arePiecesDraggable={Boolean(onPieceDrop)}
-        onPieceDrop={(from, to) => onPieceDrop?.(from, to) ?? false}
+        arePiecesDraggable={interactive}
+        isDraggablePiece={({ piece }) =>
+          interactive && (!userColor || piece[0] === userColor)
+        }
+        onPieceDrop={(from, to) => {
+          setSelected(null);
+          return commit(from, to);
+        }}
+        onSquareClick={handleSquareClick}
+        onSquareRightClick={() => onCancelPremove?.()}
         onPromotionPieceSelect={(piece, from, to) => {
           // Fired when the user picks a piece from the built-in promotion
           // dialog. `piece` is like "wQ"; forward its lowercase type.
           if (!piece || !from || !to) return false;
-          return onPieceDrop?.(from, to, piece[1].toLowerCase()) ?? false;
+          return commit(from, to, piece[1].toLowerCase());
         }}
         customBoardStyle={{ borderRadius: '6px' }}
         customDarkSquareStyle={{ backgroundColor: '#769656' }}
@@ -153,4 +259,14 @@ function MoveBadge({
 
 function tint(color: string): React.CSSProperties {
   return { background: `${color}55`, boxShadow: `inset 0 0 0 3px ${color}aa` };
+}
+
+/** Legal-move indicator: a centered dot for a quiet move, a ring for a capture. */
+function dot(isCapture: boolean): React.CSSProperties {
+  return isCapture
+    ? { boxShadow: 'inset 0 0 0 4px rgba(20,18,15,0.32)', borderRadius: '50%' }
+    : {
+        background:
+          'radial-gradient(circle, rgba(20,18,15,0.32) 20%, transparent 22%)',
+      };
 }
