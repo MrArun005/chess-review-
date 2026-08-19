@@ -419,34 +419,6 @@ export function PlayMode({ onReview }: Props) {
 
       <div className="side-col">
         <div className="card">
-          <h3>Play the engine</h3>
-          <div className="play-controls">
-            <label>
-              Strength
-              <select value={levelIdx} onChange={(e) => setLevelIdx(Number(e.target.value))}>
-                {LEVELS.map((l, i) => (
-                  <option key={i} value={i}>{l.label}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              You play
-              <select
-                value={colorChoice}
-                onChange={(e) => setColorChoice(e.target.value as 'w' | 'b' | 'random')}
-              >
-                <option value="w">White</option>
-                <option value="b">Black</option>
-                <option value="random">Random</option>
-              </select>
-            </label>
-          </div>
-          <button className="primary" style={{ marginTop: 10 }} onClick={() => newGame(colorChoice)}>
-            New game
-          </button>
-        </div>
-
-        <div className="card">
           <h3>Status</h3>
           {result ? (
             <p style={{ margin: 0, fontWeight: 600 }}>{result}</p>
@@ -479,6 +451,34 @@ export function PlayMode({ onReview }: Props) {
               🔍 Review this game
             </button>
           )}
+        </div>
+
+        <div className="card">
+          <h3>Play the engine</h3>
+          <div className="play-controls">
+            <label>
+              Strength
+              <select value={levelIdx} onChange={(e) => setLevelIdx(Number(e.target.value))}>
+                {LEVELS.map((l, i) => (
+                  <option key={i} value={i}>{l.label}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              You play
+              <select
+                value={colorChoice}
+                onChange={(e) => setColorChoice(e.target.value as 'w' | 'b' | 'random')}
+              >
+                <option value="w">White</option>
+                <option value="b">Black</option>
+                <option value="random">Random</option>
+              </select>
+            </label>
+          </div>
+          <button className="primary" style={{ marginTop: 10 }} onClick={() => newGame(colorChoice)}>
+            New game
+          </button>
         </div>
 
         {rows.length > 0 && (
