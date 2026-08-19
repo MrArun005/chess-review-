@@ -18,6 +18,7 @@ import { useExplore } from './ui/useExplore';
 import { useAnalysisEngine } from './ui/useAnalysisEngine';
 import { exportSummaryPng, shareLink, pgnFromHash, copyText } from './ui/exportImage';
 import { reviewGame, type ReviewResult, type ReviewProgress } from './review/pipeline';
+import { NEGATIVE_CLASSES } from './review/classify';
 import { recordGame } from './review/weakness';
 import { Weakness } from './ui/Weakness';
 import { buildPuzzles } from './review/puzzles';
@@ -40,6 +41,7 @@ export function App() {
   const [mode, setMode] = useState<'review' | 'play'>('review');
   const [analyzeFen, setAnalyzeFen] = useState<string | null>(null);
   const [training, setTraining] = useState(false);
+  const [retry, setRetry] = useState<RetryState | null>(null);
   const [flipped, setFlipped] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     try {
@@ -98,6 +100,7 @@ export function App() {
       setProgress(null);
       setReviewing(true);
       setTraining(false);
+      setRetry(null);
       setCurrent(-1);
 
       try {
@@ -143,6 +146,7 @@ export function App() {
   const goTo = useCallback(
     (ply: number) => {
       resetExplore();
+      setRetry(null);
       setCurrent(Math.max(-1, Math.min(moveCount - 1, ply)));
     },
     [resetExplore, moveCount]
@@ -150,6 +154,7 @@ export function App() {
   const step = useCallback(
     (delta: number) => {
       resetExplore();
+      setRetry(null);
       setCurrent((c) => Math.max(-1, Math.min(moveCount - 1, c + delta)));
     },
     [resetExplore, moveCount]
@@ -226,6 +231,82 @@ export function App() {
 
   // Captured pieces + material advantage for the position on screen.
   const captured = computeCaptured(displayFen);
+
+  // "Find the better move" — retry a mistake in place on the review board.
+  const canRetry =
+    !!move &&
+    !explore &&
+    !!move.bestUci &&
+    !!move.bestSan &&
+    move.bestUci !== move.uci &&
+    NEGATIVE_CLASSES.includes(move.classification);
+  const retryActive = !!retry && retry.ply === current && !explore;
+
+  const startRetry = () => {
+    if (!move || !move.bestUci || !move.bestSan) return;
+    resetExplore();
+    setRetry({
+      ply: current,
+      fenBefore: move.fenBefore,
+      solutionUci: move.bestUci,
+      solutionSan: move.bestSan,
+      playedSan: move.san,
+      explanation: move.explanations[0]?.text ?? null,
+      color: move.color,
+      shownFen: move.fenBefore,
+      solved: false,
+      wrongSan: null,
+    });
+  };
+
+  const attemptRetry = (from: string, to: string, promotion?: string): boolean => {
+    if (!retry) return false;
+    const c = new Chess(retry.fenBefore);
+    let mv;
+    try {
+      mv = c.move({ from, to, promotion: promotion || 'q' });
+    } catch {
+      return false;
+    }
+    if (!mv) return false;
+    const uci = mv.from + mv.to + (mv.promotion ?? '');
+    if (uci === retry.solutionUci) {
+      sound.forSan(mv.san);
+      setRetry({ ...retry, solved: true, shownFen: c.fen(), wrongSan: null, solvedFrom: mv.from, solvedTo: mv.to });
+      return true;
+    }
+    setRetry({ ...retry, wrongSan: mv.san });
+    return false;
+  };
+
+  const revealRetry = () => {
+    if (!retry) return;
+    const c = new Chess(retry.fenBefore);
+    try {
+      const mv = c.move({
+        from: retry.solutionUci.slice(0, 2),
+        to: retry.solutionUci.slice(2, 4),
+        promotion: (retry.solutionUci[4] as never) || 'q',
+      });
+      if (mv) {
+        sound.forSan(mv.san);
+        setRetry({ ...retry, solved: true, shownFen: c.fen(), wrongSan: null, solvedFrom: mv.from, solvedTo: mv.to });
+      }
+    } catch {
+      /* ignore */
+    }
+  };
+
+  // Board inputs, overridden while retrying a mistake.
+  const boardFen = retryActive ? retry!.shownFen : displayFen;
+  const boardBestUci = retryActive ? (retry!.solved ? retry!.solutionUci : null) : bestUci;
+  const boardHlFrom = retryActive ? (retry!.solved ? retry!.solvedFrom : undefined) : hlFrom;
+  const boardHlTo = retryActive ? (retry!.solved ? retry!.solvedTo : undefined) : hlTo;
+  const boardDrop = retryActive
+    ? retry!.solved
+      ? undefined
+      : (from: string, to: string) => attemptRetry(from, to)
+    : (from: string, to: string) => tryMove(displayFen, from, to);
 
   return (
     <div className="app">
@@ -358,20 +439,20 @@ export function App() {
                 <EvalBar winWhite={winWhite} />
                 <div className="board-wrap">
                   <Board
-                    fen={displayFen}
-                    bestUci={bestUci}
-                    playedFrom={hlFrom}
-                    playedTo={hlTo}
-                    playedClass={explore ? undefined : move?.classification}
+                    fen={boardFen}
+                    bestUci={boardBestUci}
+                    playedFrom={boardHlFrom}
+                    playedTo={boardHlTo}
+                    playedClass={explore || retryActive ? undefined : move?.classification}
                     badge={
-                      !explore && move
+                      !explore && !retryActive && move
                         ? { square: move.uci.slice(2, 4), cls: move.classification }
                         : null
                     }
-                    mateSquare={gameEnd?.kind === 'mate' ? gameEnd.kingSquare : null}
+                    mateSquare={!retryActive && gameEnd?.kind === 'mate' ? gameEnd.kingSquare : null}
                     boardWidth={boardWidth}
                     boardOrientation={flipped ? 'black' : 'white'}
-                    onPieceDrop={(from, to) => tryMove(displayFen, from, to)}
+                    onPieceDrop={boardDrop}
                   />
                 </div>
               </div>
@@ -387,7 +468,38 @@ export function App() {
                 </div>
               ) : null}
 
-              {explore ? (
+              {retryActive && retry ? (
+                <div className="card" style={{ marginTop: 8 }}>
+                  <div className="explore-head">
+                    <strong>Find the better move</strong>
+                    <button onClick={() => setRetry(null)}>⟲ Back to game</button>
+                  </div>
+                  <p className="note" style={{ marginTop: 0 }}>
+                    {retry.color === 'w' ? 'White' : 'Black'} to move — instead of{' '}
+                    <b>{retry.playedSan}</b>, find the move the engine wanted.
+                  </p>
+                  {!retry.solved && retry.wrongSan && (
+                    <div className="puzzle-feedback wrong">
+                      <b>{retry.wrongSan}</b> isn't it — try again.
+                    </div>
+                  )}
+                  {retry.solved && (
+                    <div className="puzzle-feedback right">
+                      ✓ Best move was <b>{retry.solutionSan}</b>.
+                      {retry.explanation && (
+                        <div className="note" style={{ marginTop: 5 }}>
+                          Why <b>{retry.playedSan}</b> failed: {retry.explanation}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {!retry.solved && (
+                    <button style={{ marginTop: 10 }} onClick={revealRetry}>
+                      Show answer
+                    </button>
+                  )}
+                </div>
+              ) : explore ? (
                 <div className="card" style={{ marginTop: 8 }}>
                   <div className="explore-head">
                     <strong>Your line</strong>
@@ -404,9 +516,15 @@ export function App() {
                   ) : null}
                 </div>
               ) : (
-                <p className="note" style={{ textAlign: 'center', marginTop: 6 }}>
-                  Tip: drag a piece to try your own move and see the engine's reply.
-                </p>
+                <div style={{ textAlign: 'center', marginTop: 6 }}>
+                  {canRetry ? (
+                    <button onClick={startRetry}>🎯 Find the better move</button>
+                  ) : (
+                    <p className="note" style={{ margin: 0 }}>
+                      Tip: drag a piece to try your own move and see the engine's reply.
+                    </p>
+                  )}
+                </div>
               )}
 
               <div className="nav">
@@ -452,6 +570,21 @@ interface GameEnd {
   kind: 'mate' | 'stalemate' | 'draw';
   winner: string | null;
   kingSquare: string | null;
+}
+
+interface RetryState {
+  ply: number;
+  fenBefore: string;
+  solutionUci: string;
+  solutionSan: string;
+  playedSan: string;
+  explanation: string | null;
+  color: 'w' | 'b';
+  shownFen: string;
+  solved: boolean;
+  wrongSan: string | null;
+  solvedFrom?: string;
+  solvedTo?: string;
 }
 
 /** Detect a finished game at `fen` (checkmate/stalemate/draw), for the UI sign. */
