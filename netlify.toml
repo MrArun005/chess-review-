@@ -1,15 +1,9 @@
-# Netlify config. Cross-origin isolation is required for multi-threaded
-# Stockfish (SharedArrayBuffer). Without these headers you fall back to the
-# single-threaded engine build — 3-4x slower.
+# Netlify config. The engine runs single-threaded, so no cross-origin isolation
+# headers are needed — and omitting them keeps third-party connections (the
+# online-play signalling/relay) unencumbered.
 [build]
   command = "npm run build"
   publish = "dist"
-
-[[headers]]
-  for = "/*"
-  [headers.values]
-    Cross-Origin-Opener-Policy = "same-origin"
-    Cross-Origin-Embedder-Policy = "require-corp"
 
 # SPA fallback.
 [[redirects]]
