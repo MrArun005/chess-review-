@@ -1,107 +1,65 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Chess } from 'chess.js';
-import type { DataConnection, Peer } from 'peerjs';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Chess, type Move } from 'chess.js';
 import { Board } from './Board';
 import { CapturedTray, computeCaptured } from './Captured';
 import { sound } from './sound';
+import { friendLink, pgnFromFriendHash, copyText } from './exportImage';
 
 /**
- * Live play against a friend on another device, over WebRTC. Signalling goes
- * through PeerJS's free public server just long enough to connect the two
- * browsers; the moves themselves flow peer-to-peer over a data channel. No
- * account, no game data on any server. peerjs is dynamically imported so it
- * never weighs down the offline review/play bundle.
+ * Play a friend by link — correspondence chess with no server and no live
+ * connection to fail. You make a move, get a link, and send it to your friend
+ * (WhatsApp, iMessage, anywhere). They open it, see your move, reply, and send
+ * a link back. Each link carries the whole game and hands the turn to whoever
+ * opens it, so it works on any device and any network.
  */
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-const PREFIX = 'crchess-';
-const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 type Color = 'w' | 'b';
-type Phase = 'menu' | 'hosting' | 'connecting' | 'playing';
-
-type Msg =
-  | { t: 'init'; color: Color }
-  | { t: 'move'; uci: string; fen: string }
-  | { t: 'resign' }
-  | { t: 'rematch' };
-
-function makeCode(len = 4): string {
-  let s = '';
-  for (let i = 0; i < len; i++) s += ALPHABET[Math.floor(Math.random() * ALPHABET.length)];
-  return s;
-}
-
-/**
- * ICE servers for WebRTC. STUN lets peers discover their public address; the
- * TURN relays are the fallback when a direct peer-to-peer path can't be formed
- * (restrictive/symmetric NATs, most mobile-data networks) — without them two
- * real devices on different networks frequently fail to connect. These are
- * well-known free public relays.
- */
-const ICE_SERVERS = [
-  { urls: 'stun:stun.l.google.com:19302' },
-  { urls: 'stun:global.stun.twilio.com:3478' },
-  {
-    urls: [
-      'turn:openrelay.metered.ca:80',
-      'turn:openrelay.metered.ca:443',
-      'turn:openrelay.metered.ca:443?transport=tcp',
-    ],
-    username: 'openrelayproject',
-    credential: 'openrelayproject',
-  },
-];
-
-/**
- * PeerJS options. Always supplies the ICE servers above. A `?peerhost=` URL
- * param points signalling at a self-hosted server instead of the free cloud
- * (used by the integration test).
- */
-function peerOpts(): Record<string, unknown> {
-  const opts: Record<string, unknown> = { config: { iceServers: ICE_SERVERS } };
-  try {
-    const p = new URLSearchParams(location.search);
-    const host = p.get('peerhost');
-    if (host) {
-      opts.host = host;
-      opts.port = Number(p.get('peerport') || '9000');
-      opts.path = p.get('peerpath') || '/';
-      opts.secure = false;
-    }
-  } catch {
-    /* ignore */
-  }
-  return opts;
-}
 
 export function OnlinePlay() {
-  const [phase, setPhase] = useState<Phase>('menu');
-  const [code, setCode] = useState('');
-  const [joinCode, setJoinCode] = useState('');
-  const [hostColor, setHostColor] = useState<'w' | 'b' | 'random'>('w');
-  const [myColor, setMyColor] = useState<Color>('w');
-  const [status, setStatus] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [connected, setConnected] = useState(false);
+  const gameRef = useRef(new Chess());
+  const [phase, setPhase] = useState<'menu' | 'playing'>('menu');
   const [fen, setFen] = useState(START_FEN);
   const [historySan, setHistorySan] = useState<string[]>([]);
   const [lastMove, setLastMove] = useState<{ from: string; to: string } | null>(null);
-  const [result, setResult] = useState<string | null>(null);
-  const [resultDismissed, setResultDismissed] = useState(false);
+  const [myColor, setMyColor] = useState<Color>('w');
+  const [myTurn, setMyTurn] = useState(true);
+  const [link, setLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
   const [boardWidth, setBoardWidth] = useState(440);
-
-  const gameRef = useRef(new Chess());
-  const peerRef = useRef<Peer | null>(null);
-  const connRef = useRef<DataConnection | null>(null);
-  const myColorRef = useRef<Color>('w');
-  myColorRef.current = myColor;
-  const hostColorRef = useRef(hostColor);
-  hostColorRef.current = hostColor;
-  const connectedRef = useRef(false);
-  connectedRef.current = connected;
   const boardCol = useRef<HTMLDivElement>(null);
+
+  // Load a game handed over by a link — on mount, and whenever the hash changes
+  // (tapping a new link while the app is already open only changes the hash, it
+  // doesn't reload the page).
+  useEffect(() => {
+    const loadFromHash = () => {
+      void pgnFromFriendHash().then((pgn) => {
+        if (pgn === null) return;
+        const g = new Chess();
+        try {
+          if (pgn.trim()) g.loadPgn(pgn);
+        } catch {
+          return;
+        }
+        gameRef.current = g;
+        setMyColor(g.turn() === 'w' ? 'w' : 'b');
+        setPhase('playing');
+        setMyTurn(!g.isGameOver());
+        setLink(null);
+        setCopied(false);
+        refreshFrom(g);
+        // Clear the hash so a refresh doesn't reload a stale position.
+        history.replaceState(null, '', location.pathname + location.search);
+      });
+    };
+    loadFromHash();
+    window.addEventListener('hashchange', loadFromHash);
+    return () => window.removeEventListener('hashchange', loadFromHash);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const el = boardCol.current;
@@ -120,232 +78,44 @@ export function OnlinePlay() {
     };
   }, [phase]);
 
-  // Tear the connection down when leaving the tab.
-  useEffect(() => {
-    return () => {
-      connRef.current?.close();
-      peerRef.current?.destroy();
-    };
-  }, []);
-
-  const sync = useCallback(() => {
-    const g = gameRef.current;
+  function refreshFrom(g: Chess) {
     setFen(g.fen());
     setHistorySan(g.history());
-    if (g.isGameOver()) {
-      if (g.isCheckmate()) {
-        const loser = g.turn();
-        const youWon = loser !== myColorRef.current;
-        setResult(`Checkmate — ${youWon ? 'you win! 🎉' : 'you lose.'}`);
-      } else {
-        setResult('Draw.');
-      }
-    }
-  }, []);
+    const verbose = g.history({ verbose: true });
+    const last = verbose[verbose.length - 1];
+    setLastMove(last ? { from: last.from, to: last.to } : null);
+    setResult(gameResult(g));
+  }
 
-  const handleData = useCallback(
-    (msg: Msg) => {
-      if (msg.t === 'init') {
-        setMyColor(msg.color);
-        myColorRef.current = msg.color;
-        return;
-      }
-      if (msg.t === 'move') {
-        const g = gameRef.current;
-        try {
-          const mv = g.move({
-            from: msg.uci.slice(0, 2),
-            to: msg.uci.slice(2, 4),
-            promotion: (msg.uci[4] as never) || 'q',
-          });
-          if (mv) {
-            sound.forSan(mv.san);
-            setLastMove({ from: mv.from, to: mv.to });
-          } else {
-            g.load(msg.fen);
-          }
-        } catch {
-          g.load(msg.fen);
-        }
-        sync();
-        return;
-      }
-      if (msg.t === 'resign') {
-        setResult('Opponent resigned — you win! 🎉');
-        return;
-      }
-      if (msg.t === 'rematch') {
-        resetGame(myColorRef.current === 'w' ? 'b' : 'w', false);
-      }
-    },
-    [sync]
-  );
-
-  const send = (msg: Msg) => connRef.current?.send(msg);
-
-  const watchdogRef = useRef<number | null>(null);
-
-  const setupConn = useCallback(
-    (conn: DataConnection, asHost: boolean) => {
-      connRef.current = conn;
-
-      // If the direct WebRTC path can't be formed within 20s, say so plainly.
-      if (watchdogRef.current) window.clearTimeout(watchdogRef.current);
-      watchdogRef.current = window.setTimeout(() => {
-        if (!connectedRef.current) {
-          setError(
-            "Couldn't establish a direct connection — one of the networks may be blocking peer-to-peer. Try again, or have both devices on the same Wi-Fi."
-          );
-          setStatus('');
-          setPhase('menu');
-          peerRef.current?.destroy();
-        }
-      }, 20000);
-
-      // Surface the underlying ICE state so a stuck connection shows *why*.
-      const monitorIce = () => {
-        const pc = (conn as unknown as { peerConnection?: RTCPeerConnection }).peerConnection;
-        if (!pc) {
-          window.setTimeout(monitorIce, 300);
-          return;
-        }
-        const onIce = () => {
-          const st = pc.iceConnectionState;
-          if (connectedRef.current) return;
-          if (st === 'checking') setStatus('Linking devices…');
-          else if (st === 'failed') {
-            if (watchdogRef.current) window.clearTimeout(watchdogRef.current);
-            setError(
-              "Couldn't connect the two devices directly — the network is blocking peer-to-peer, and the relay didn't work either. Try both on the same Wi-Fi."
-            );
-            setStatus('');
-            setPhase('menu');
-            peerRef.current?.destroy();
-          }
-        };
-        pc.addEventListener('iceconnectionstatechange', onIce);
-        onIce();
-      };
-      monitorIce();
-
-      const onOpen = () => {
-        if (watchdogRef.current) window.clearTimeout(watchdogRef.current);
-        setConnected(true);
-        setPhase('playing');
-        setStatus('');
-        setError(null);
-        if (asHost) {
-          const hc: Color =
-            hostColorRef.current === 'random'
-              ? Math.random() < 0.5
-                ? 'w'
-                : 'b'
-              : hostColorRef.current;
-          setMyColor(hc);
-          myColorRef.current = hc;
-          conn.send({ t: 'init', color: hc === 'w' ? 'b' : 'w' } as Msg);
-        }
-      };
-      // The connection can already be open by the time we attach the listener.
-      if (conn.open) onOpen();
-      else conn.on('open', onOpen);
-
-      conn.on('data', (d) => handleData(d as Msg));
-      conn.on('close', () => {
-        setConnected(false);
-        setStatus('Opponent disconnected.');
-      });
-      conn.on('error', () => {
-        setStatus('Connection error — try again.');
-      });
-    },
-    [handleData]
-  );
-
-  const resetGame = (mine: Color, announce: boolean) => {
-    gameRef.current = new Chess();
-    setMyColor(mine);
-    myColorRef.current = mine;
-    setFen(START_FEN);
-    setHistorySan([]);
-    setLastMove(null);
+  const startGame = (youFirst: boolean) => {
+    const g = new Chess();
+    gameRef.current = g;
+    setMyColor('w');
+    setPhase('playing');
     setResult(null);
-    setResultDismissed(false);
-    if (announce) send({ t: 'rematch' });
-  };
-
-  const createRoom = async () => {
-    setError(null);
-    try {
-      const { Peer } = await import('peerjs');
-      const c = makeCode();
-      setCode(c);
-      resetGame(hostColor === 'random' ? 'w' : hostColor, false);
-      const peer = new Peer(PREFIX + c, peerOpts());
-      peerRef.current = peer;
-      peer.on('open', () => {
-        setPhase('hosting');
-        setStatus('Waiting for a friend to join…');
-      });
-      peer.on('connection', (conn) => setupConn(conn, true));
-      peer.on('error', (e: unknown) => {
-        const type = (e as { type?: string }).type;
-        if (type === 'unavailable-id') {
-          peer.destroy();
-          void createRoom(); // code collision — pick another
-        } else {
-          setError(`Could not create room (${type ?? 'error'}).`);
-          setPhase('menu');
-        }
-      });
-    } catch {
-      setError('Could not load the connection library. Check your network.');
+    setLink(null);
+    refreshFrom(g);
+    if (youFirst) {
+      // You are White and to move now.
+      setMyTurn(true);
+    } else {
+      // Friend plays White — hand them the opening link straight away.
+      setMyColor('b');
+      setMyTurn(false);
+      void makeLink(g);
     }
   };
 
-  const joinRoom = async () => {
-    const c = joinCode.trim().toUpperCase();
-    if (c.length < 3) return;
-    setError(null);
-    setPhase('connecting');
-    setStatus('Connecting…');
-    try {
-      const { Peer } = await import('peerjs');
-      const peer = new Peer(undefined as unknown as string, peerOpts());
-      peerRef.current = peer;
-      peer.on('open', () => {
-        const conn = peer.connect(PREFIX + c, { reliable: true });
-        setupConn(conn, false);
-      });
-      peer.on('error', (e: unknown) => {
-        const type = (e as { type?: string }).type;
-        setError(type === 'peer-unavailable' ? 'Room not found — check the code.' : `Connection failed (${type ?? 'error'}).`);
-        setPhase('menu');
-      });
-    } catch {
-      setError('Could not load the connection library. Check your network.');
-      setPhase('menu');
-    }
-  };
-
-  const leave = () => {
-    connRef.current?.close();
-    peerRef.current?.destroy();
-    connRef.current = null;
-    peerRef.current = null;
-    setConnected(false);
-    setPhase('menu');
-    setStatus('');
-    setError(null);
-    setCode('');
-    resetGame('w', false);
+  const makeLink = async (g: Chess) => {
+    const url = await friendLink(g.pgn());
+    setLink(url);
   };
 
   const onDrop = (from: string, to: string, promotion?: string): boolean => {
+    if (!myTurn || result) return false;
     const g = gameRef.current;
-    if (result || !connectedRef.current) return false;
-    if (g.turn() !== myColorRef.current) return false;
-    let mv;
+    if (g.turn() !== myColor) return false;
+    let mv: Move | null = null;
     try {
       mv = g.move({ from, to, promotion: promotion || 'q' });
     } catch {
@@ -354,109 +124,72 @@ export function OnlinePlay() {
     if (!mv) return false;
     sound.forSan(mv.san);
     setLastMove({ from: mv.from, to: mv.to });
-    send({ t: 'move', uci: mv.from + mv.to + (mv.promotion ?? ''), fen: g.fen() });
-    sync();
+    setMyTurn(false);
+    refreshFrom(g);
+    if (!g.isGameOver()) void makeLink(g);
+    else setLink(null);
     return true;
   };
 
-  const resign = () => {
-    if (result || !connected) return;
-    send({ t: 'resign' });
-    setResult('You resigned — opponent wins.');
-  };
-
-  const copyCode = async () => {
-    try {
-      await navigator.clipboard.writeText(code);
+  const copy = async () => {
+    if (!link) return;
+    const ok = await copyText(link);
+    if (ok) {
       setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      /* ignore */
+      setTimeout(() => setCopied(false), 1600);
     }
   };
 
-  // ----- render -----
-  if (phase === 'menu' || phase === 'hosting' || phase === 'connecting') {
+  const shareNative = async () => {
+    if (!link) return;
+    const nav = navigator as Navigator & { share?: (d: { title?: string; url?: string }) => Promise<void> };
+    if (nav.share) {
+      try {
+        await nav.share({ title: 'Your move — Chess', url: link });
+        return;
+      } catch {
+        /* user cancelled / unsupported */
+      }
+    }
+    void copy();
+  };
+
+  const captured = useMemo(() => computeCaptured(fen), [fen]);
+  const topSide: Color = myColor === 'w' ? 'b' : 'w';
+
+  if (phase === 'menu') {
     return (
       <div className="intake">
-        <h2 style={{ margin: 0 }}>Play a friend online</h2>
+        <h2 style={{ margin: 0 }}>Play a friend by link</h2>
         <p className="note" style={{ marginTop: 0 }}>
-          Live game on two devices, peer-to-peer. One of you creates a room and shares the code; the
-          other joins with it. No account — the connection is direct between your browsers.
+          No account, no server, works on any device. Make a move, then send your friend the link
+          (WhatsApp, iMessage, anywhere). They open it, play their reply, and send a link back. Each
+          link carries the whole game.
         </p>
-
-        {phase === 'hosting' ? (
-          <div className="card">
-            <h3>Your room code</h3>
-            <div className="room-code">{code}</div>
-            <div className="row" style={{ justifyContent: 'center' }}>
-              <button onClick={copyCode}>{copied ? '✓ Copied' : '📋 Copy code'}</button>
-              <button onClick={leave}>Cancel</button>
-            </div>
-            <p className="note" style={{ textAlign: 'center' }}>{status}</p>
-          </div>
-        ) : phase === 'connecting' ? (
-          <div className="card">
-            <p className="note" style={{ margin: 0 }}>{status}</p>
-            <button style={{ marginTop: 10 }} onClick={leave}>Cancel</button>
-          </div>
-        ) : (
-          <div className="online-menu">
-            <div className="card">
-              <h3>Create a room</h3>
-              <label className="online-field">
-                You play
-                <select value={hostColor} onChange={(e) => setHostColor(e.target.value as 'w' | 'b' | 'random')}>
-                  <option value="w">White</option>
-                  <option value="b">Black</option>
-                  <option value="random">Random</option>
-                </select>
-              </label>
-              <button className="primary" style={{ marginTop: 10, width: '100%' }} onClick={() => void createRoom()}>
-                Create room
-              </button>
-            </div>
-            <div className="card">
-              <h3>Join a room</h3>
-              <input
-                value={joinCode}
-                onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                onKeyDown={(e) => e.key === 'Enter' && void joinRoom()}
-                placeholder="Enter code"
-                maxLength={6}
-                style={{ textTransform: 'uppercase', letterSpacing: '0.2em', textAlign: 'center' }}
-              />
-              <button className="primary" style={{ marginTop: 10, width: '100%' }} onClick={() => void joinRoom()}>
-                Join
-              </button>
-            </div>
-          </div>
-        )}
-
-        {error && <div className="error">{error}</div>}
+        <div className="row">
+          <button className="primary" onClick={() => startGame(true)}>Start — I play White</button>
+          <button onClick={() => startGame(false)}>Let my friend play White</button>
+        </div>
       </div>
     );
   }
 
-  // playing
-  const captured = computeCaptured(fen);
-  const myTurn = connected && !result && gameRef.current.turn() === myColor;
-  const orientation = myColor === 'w' ? 'white' : 'black';
-  const topSide: Color = myColor === 'w' ? 'b' : 'w';
+  const waiting = !myTurn && !result;
 
   return (
     <div className="review">
       <div>
-        <div
-          className={`top-hint ${myTurn ? '' : 'muted'}`}
-          style={{ opacity: 1 }}
-        >
-          {result ? result : myTurn ? 'Your move.' : connected ? "Opponent's move…" : status || 'Disconnected.'}
+        <div className={`top-hint ${myTurn ? '' : 'muted'}`}>
+          {result
+            ? result
+            : myTurn
+              ? `Your move — you're ${myColor === 'w' ? 'White' : 'Black'}.`
+              : 'Move made — send the link to your friend.'}
         </div>
         <div className="board-col" ref={boardCol}>
           <div className="board-stack">
             <div className="player-bar" style={{ width: boardWidth }}>
-              <span className="player-name">Opponent</span>
+              <span className="player-name">Friend</span>
               <div className="player-captured">
                 <CapturedTray info={captured} side={topSide} />
               </div>
@@ -467,8 +200,8 @@ export function OnlinePlay() {
                 playedFrom={lastMove?.from}
                 playedTo={lastMove?.to}
                 boardWidth={boardWidth}
-                boardOrientation={orientation}
-                onPieceDrop={onDrop}
+                boardOrientation={myColor === 'w' ? 'white' : 'black'}
+                onPieceDrop={myTurn && !result ? onDrop : undefined}
                 userColor={myColor}
               />
             </div>
@@ -483,18 +216,34 @@ export function OnlinePlay() {
       </div>
 
       <div className="side-col">
-        <div className="card">
-          <h3>Online game</h3>
-          <p className="note" style={{ marginTop: 0 }}>
-            {connected ? 'Connected to your opponent.' : status || 'Disconnected.'}
-          </p>
-          <div className="play-buttons">
-            <button onClick={resign} disabled={!connected || result !== null}>🏳 Resign</button>
-            <button onClick={() => resetGame(myColor === 'w' ? 'b' : 'w', true)} disabled={!connected}>
-              ↻ Rematch
-            </button>
-            <button onClick={leave} style={{ gridColumn: '1 / -1' }}>← Leave</button>
+        {waiting && link && (
+          <div className="card">
+            <h3>Send this to your friend</h3>
+            <p className="note" style={{ marginTop: 0 }}>
+              They open it, play their move, and send a link back.
+            </p>
+            <input readOnly value={link} onFocus={(e) => e.currentTarget.select()} className="link-box" />
+            <div className="row" style={{ marginTop: 8 }}>
+              <button className="primary" onClick={shareNative}>📤 Share</button>
+              <button onClick={copy}>{copied ? '✓ Copied' : '📋 Copy link'}</button>
+            </div>
           </div>
+        )}
+
+        {result && (
+          <div className="card">
+            <h3>Game over</h3>
+            <p style={{ margin: 0, fontWeight: 600 }}>{result}</p>
+          </div>
+        )}
+
+        <div className="card">
+          <h3>How it works</h3>
+          <p className="note" style={{ margin: 0 }}>
+            When your friend's reply link arrives, open it and it'll be your move again. You can keep
+            a game going for as long as you like — nothing expires.
+          </p>
+          <button style={{ marginTop: 10 }} onClick={() => setPhase('menu')}>← New game</button>
         </div>
 
         {historySan.length > 0 && (
@@ -504,22 +253,18 @@ export function OnlinePlay() {
           </div>
         )}
       </div>
-
-      {result && !resultDismissed && (
-        <div className="modal-overlay" onClick={() => setResultDismissed(true)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-title">{/win/i.test(result) && result.includes('🎉') ? '🎉 You win!' : 'Game over'}</div>
-            <p className="modal-result">{result}</p>
-            <div className="modal-actions">
-              <button className="primary" onClick={() => resetGame(myColor === 'w' ? 'b' : 'w', true)}>
-                ↻ Rematch
-              </button>
-              <button onClick={leave}>← Leave</button>
-              <button onClick={() => setResultDismissed(true)}>Close</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
+}
+
+function gameResult(g: Chess): string | null {
+  if (!g.isGameOver()) return null;
+  if (g.isCheckmate()) {
+    const loser = g.turn();
+    return `Checkmate — ${loser === 'w' ? 'Black' : 'White'} wins.`;
+  }
+  if (g.isStalemate()) return 'Stalemate — draw.';
+  if (g.isInsufficientMaterial()) return 'Draw — insufficient material.';
+  if (g.isDraw()) return 'Draw.';
+  return 'Game over.';
 }

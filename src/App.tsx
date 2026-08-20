@@ -194,7 +194,18 @@ export function App() {
     else sound.move();
   }, [current, result]);
 
-  // Auto-load a game from a shared URL (#g=... or #pgn=...).
+  // A correspondence link (#f=/#fp=) opens straight into the Friend tab —
+  // on load and when a new link is opened while the app is already running.
+  useEffect(() => {
+    const check = () => {
+      if (/[#&]f=|[#&]fp=/.test(window.location.hash)) setMode('online');
+    };
+    check();
+    window.addEventListener('hashchange', check);
+    return () => window.removeEventListener('hashchange', check);
+  }, []);
+
+  // Auto-load a game from a shared review URL (#g=... or #pgn=...).
   useEffect(() => {
     void pgnFromHash().then((shared) => {
       if (shared) void startReview(shared);
@@ -333,7 +344,7 @@ export function App() {
               Play
             </button>
             <button className={mode === 'online' ? 'active' : ''} onClick={() => setMode('online')}>
-              Online
+              Friend
             </button>
           </div>
           <OfflineButton />

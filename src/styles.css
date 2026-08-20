@@ -452,6 +452,14 @@ button.offline-ready {
   font-size: 13px;
   color: var(--muted);
 }
+.link-box {
+  width: 100%;
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .room-code {
   font-size: 40px;
   font-weight: 800;

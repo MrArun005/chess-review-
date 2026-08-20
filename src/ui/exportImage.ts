@@ -159,6 +159,45 @@ export async function copyText(text: string): Promise<boolean> {
   }
 }
 
+/**
+ * A correspondence ("play a friend") link: same gzip encoding as a share link
+ * but under #f= so the app opens it as a live game to move in, not a review.
+ */
+export async function friendLink(pgn: string): Promise<string> {
+  const { origin, pathname } = window.location;
+  if (typeof CompressionStream !== 'undefined') {
+    try {
+      const bytes = await gzip(pgn);
+      return `${origin}${pathname}#f=${toB64url(bytes)}`;
+    } catch {
+      /* fall back */
+    }
+  }
+  return `${origin}${pathname}#fp=${encodeURIComponent(pgn)}`;
+}
+
+/** Read a correspondence-game PGN from the hash (#f= compressed / #fp= plain). */
+export async function pgnFromFriendHash(): Promise<string | null> {
+  const hash = window.location.hash;
+  const g = hash.match(/[#&]f=([^&]+)/);
+  if (g) {
+    try {
+      return await gunzip(fromB64url(g[1]));
+    } catch {
+      return null;
+    }
+  }
+  const p = hash.match(/[#&]fp=([^&]+)/);
+  if (p) {
+    try {
+      return decodeURIComponent(p[1]);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
 /** Read a PGN out of the current URL hash (compressed #g= or plain #pgn=). */
 export async function pgnFromHash(): Promise<string | null> {
   const hash = window.location.hash;
