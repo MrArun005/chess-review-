@@ -202,6 +202,32 @@ export function OnlinePlay() {
         }
       }, 20000);
 
+      // Surface the underlying ICE state so a stuck connection shows *why*.
+      const monitorIce = () => {
+        const pc = (conn as unknown as { peerConnection?: RTCPeerConnection }).peerConnection;
+        if (!pc) {
+          window.setTimeout(monitorIce, 300);
+          return;
+        }
+        const onIce = () => {
+          const st = pc.iceConnectionState;
+          if (connectedRef.current) return;
+          if (st === 'checking') setStatus('Linking devices…');
+          else if (st === 'failed') {
+            if (watchdogRef.current) window.clearTimeout(watchdogRef.current);
+            setError(
+              "Couldn't connect the two devices directly — the network is blocking peer-to-peer, and the relay didn't work either. Try both on the same Wi-Fi."
+            );
+            setStatus('');
+            setPhase('menu');
+            peerRef.current?.destroy();
+          }
+        };
+        pc.addEventListener('iceconnectionstatechange', onIce);
+        onIce();
+      };
+      monitorIce();
+
       const onOpen = () => {
         if (watchdogRef.current) window.clearTimeout(watchdogRef.current);
         setConnected(true);
