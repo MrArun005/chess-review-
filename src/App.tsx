@@ -194,17 +194,6 @@ export function App() {
     else sound.move();
   }, [current, result]);
 
-  // A correspondence link (#f=/#fp=) opens straight into the Friend tab —
-  // on load and when a new link is opened while the app is already running.
-  useEffect(() => {
-    const check = () => {
-      if (/[#&]f=|[#&]fp=/.test(window.location.hash)) setMode('online');
-    };
-    check();
-    window.addEventListener('hashchange', check);
-    return () => window.removeEventListener('hashchange', check);
-  }, []);
-
   // Auto-load a game from a shared review URL (#g=... or #pgn=...).
   useEffect(() => {
     void pgnFromHash().then((shared) => {
