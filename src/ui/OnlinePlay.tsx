@@ -33,26 +33,46 @@ function makeCode(len = 4): string {
 }
 
 /**
- * PeerJS server options. Defaults to PeerJS's free public cloud; a `?peerhost=`
- * URL param points it at a self-hosted signalling server instead (used by the
- * integration test).
+ * ICE servers for WebRTC. STUN lets peers discover their public address; the
+ * TURN relays are the fallback when a direct peer-to-peer path can't be formed
+ * (restrictive/symmetric NATs, most mobile-data networks) — without them two
+ * real devices on different networks frequently fail to connect. These are
+ * well-known free public relays.
  */
-function peerOpts(): Record<string, unknown> | undefined {
+const ICE_SERVERS = [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:global.stun.twilio.com:3478' },
+  {
+    urls: [
+      'turn:openrelay.metered.ca:80',
+      'turn:openrelay.metered.ca:443',
+      'turn:openrelay.metered.ca:443?transport=tcp',
+    ],
+    username: 'openrelayproject',
+    credential: 'openrelayproject',
+  },
+];
+
+/**
+ * PeerJS options. Always supplies the ICE servers above. A `?peerhost=` URL
+ * param points signalling at a self-hosted server instead of the free cloud
+ * (used by the integration test).
+ */
+function peerOpts(): Record<string, unknown> {
+  const opts: Record<string, unknown> = { config: { iceServers: ICE_SERVERS } };
   try {
     const p = new URLSearchParams(location.search);
     const host = p.get('peerhost');
     if (host) {
-      return {
-        host,
-        port: Number(p.get('peerport') || '9000'),
-        path: p.get('peerpath') || '/',
-        secure: false,
-      };
+      opts.host = host;
+      opts.port = Number(p.get('peerport') || '9000');
+      opts.path = p.get('peerpath') || '/';
+      opts.secure = false;
     }
   } catch {
     /* ignore */
   }
-  return undefined;
+  return opts;
 }
 
 export function OnlinePlay() {
@@ -163,10 +183,27 @@ export function OnlinePlay() {
 
   const send = (msg: Msg) => connRef.current?.send(msg);
 
+  const watchdogRef = useRef<number | null>(null);
+
   const setupConn = useCallback(
     (conn: DataConnection, asHost: boolean) => {
       connRef.current = conn;
-      conn.on('open', () => {
+
+      // If the direct WebRTC path can't be formed within 20s, say so plainly.
+      if (watchdogRef.current) window.clearTimeout(watchdogRef.current);
+      watchdogRef.current = window.setTimeout(() => {
+        if (!connectedRef.current) {
+          setError(
+            "Couldn't establish a direct connection — one of the networks may be blocking peer-to-peer. Try again, or have both devices on the same Wi-Fi."
+          );
+          setStatus('');
+          setPhase('menu');
+          peerRef.current?.destroy();
+        }
+      }, 20000);
+
+      const onOpen = () => {
+        if (watchdogRef.current) window.clearTimeout(watchdogRef.current);
         setConnected(true);
         setPhase('playing');
         setStatus('');
@@ -182,11 +219,18 @@ export function OnlinePlay() {
           myColorRef.current = hc;
           conn.send({ t: 'init', color: hc === 'w' ? 'b' : 'w' } as Msg);
         }
-      });
+      };
+      // The connection can already be open by the time we attach the listener.
+      if (conn.open) onOpen();
+      else conn.on('open', onOpen);
+
       conn.on('data', (d) => handleData(d as Msg));
       conn.on('close', () => {
         setConnected(false);
         setStatus('Opponent disconnected.');
+      });
+      conn.on('error', () => {
+        setStatus('Connection error — try again.');
       });
     },
     [handleData]
