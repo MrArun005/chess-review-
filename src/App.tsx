@@ -618,7 +618,7 @@ export function App() {
             </div>
 
             <div className="side-col">
-              <Summary moves={result.moves} openingName={result.openingName} />
+              <Summary moves={result.moves} openingName={result.openingName} eco={result.headers.ECO} />
               <MoveDetail move={move} />
               <EngineLines
                 fen={displayFen}

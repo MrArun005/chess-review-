@@ -9,6 +9,7 @@ const PHASES: Phase[] = ['opening', 'middlegame', 'endgame'];
 interface Props {
   moves: ReviewedMove[];
   openingName: string | null;
+  eco?: string;
 }
 
 const COUNTED: MoveClass[] = [
@@ -16,15 +17,16 @@ const COUNTED: MoveClass[] = [
   'book', 'inaccuracy', 'mistake', 'blunder', 'miss',
 ];
 
-export function Summary({ moves, openingName }: Props) {
+export function Summary({ moves, openingName, eco }: Props) {
   const stats = useMemo(() => computeStats(moves), [moves]);
 
   return (
     <div className="card summary">
       <h3>Summary</h3>
-      {openingName && (
+      {(openingName || eco) && (
         <p className="note" style={{ marginTop: -4 }}>
-          Opening: {openingName}
+          {eco && <strong style={{ color: 'var(--muted)' }}>{eco} </strong>}
+          {openingName ?? 'Opening'}
         </p>
       )}
       <div className="acc">

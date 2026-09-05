@@ -14,6 +14,36 @@ export interface GameSummary {
 }
 
 /**
+ * Fetch a single game's PGN from a shared game URL. Lichess exposes a clean
+ * keyless PGN export; chess.com has no equivalent per-game endpoint, so those
+ * links get a helpful message pointing at username import / paste.
+ */
+export async function fetchGameByUrl(url: string, signal?: AbortSignal): Promise<string> {
+  const u = url.trim();
+  const li = u.match(/lichess\.org\/([A-Za-z0-9]{8})/);
+  if (li) {
+    const res = await fetch(
+      `https://lichess.org/game/export/${li[1]}?clocks=false&evals=false&literate=false`,
+      { headers: { Accept: 'application/x-chess-pgn' }, signal }
+    );
+    if (!res.ok) {
+      throw new Error(
+        res.status === 404 ? "Couldn't find that lichess game." : `lichess error (${res.status}).`
+      );
+    }
+    const pgn = await res.text();
+    if (!pgn.trim()) throw new Error('That lichess game had no moves.');
+    return pgn;
+  }
+  if (/chess\.com\//i.test(u)) {
+    throw new Error(
+      'chess.com single-game links aren’t supported yet. Use "Import by username", or open the game on chess.com → Share → PGN and paste it here.'
+    );
+  }
+  throw new Error('Unrecognized link — paste a lichess game URL, or a PGN.');
+}
+
+/**
  * Fetch a player's most recent games from chess.com's public API (keyless,
  * CORS-open). Returns the newest archive's games, newest first.
  */

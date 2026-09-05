@@ -3,6 +3,7 @@ import { Chess } from 'chess.js';
 import {
   fetchChessComGames,
   fetchLichessGames,
+  fetchGameByUrl,
   splitPgns,
   summarize,
   type GameSummary,
@@ -46,7 +47,21 @@ export function Intake({ onPgn, onFen }: Props) {
     }
   };
 
-  const reviewPasted = () => {
+  const reviewPasted = async () => {
+    const text = pgn.trim();
+    // A pasted game link: fetch its PGN first.
+    if (/^https?:\/\//i.test(text)) {
+      setLoading(true);
+      setError(null);
+      try {
+        onPgn(await fetchGameByUrl(text));
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Could not load that link.');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
     // A paste can contain several games — split and let the user pick.
     const list = splitPgns(pgn);
     if (list.length > 1) {
@@ -108,12 +123,12 @@ export function Intake({ onPgn, onFen }: Props) {
               setPgn(e.target.value);
               setPastedGames([]);
             }}
-            placeholder="Paste a PGN here…"
+            placeholder="Paste a PGN — or a lichess game link (lichess.org/…)"
             spellCheck={false}
           />
           <div className="row">
-            <button className="primary" disabled={!pgn.trim()} onClick={reviewPasted}>
-              Review game
+            <button className="primary" disabled={!pgn.trim() || loading} onClick={reviewPasted}>
+              {loading ? 'Loading…' : 'Review game'}
             </button>
             <button onClick={() => setPgn(SAMPLE_PGN)}>Load a sample</button>
           </div>

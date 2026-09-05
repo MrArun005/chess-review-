@@ -57,9 +57,13 @@ export function PlayMode({ onReview }: Props) {
   const [premove, setPremove] = useState<{ from: string; to: string } | null>(null);
   const [boardWidth, setBoardWidth] = useState(440);
 
-  // Clock (optional). timeControl is seconds per side; 0 = no clock.
+  // Clock (optional). timeControl is base seconds per side (0 = no clock);
+  // increment seconds are added to a player's clock after each of their moves.
   const [timeControl, setTimeControl] = useState(600);
+  const [increment, setIncrement] = useState(0);
   const [clock, setClock] = useState<{ w: number; b: number }>({ w: 600000, b: 600000 });
+  const incrementRef = useRef(0);
+  incrementRef.current = increment;
   const [resultDismissed, setResultDismissed] = useState(false);
 
   // Live coach.
@@ -168,6 +172,11 @@ export function PlayMode({ onReview }: Props) {
     (mv: Move) => {
       sound.forSan(mv.san);
       setHintUci(null);
+      // Increment: add time to the clock of whoever just moved.
+      if (incrementRef.current > 0) {
+        const moved = mv.color === 'w' ? 'w' : 'b';
+        setClock((c) => ({ ...c, [moved]: c[moved] + incrementRef.current * 1000 }));
+      }
       rebuild();
       if (gameRef.current.isGameOver()) finish();
     },
@@ -542,11 +551,21 @@ export function PlayMode({ onReview }: Props) {
             </label>
             <label>
               Clock
-              <select value={timeControl} onChange={(e) => setTimeControl(Number(e.target.value))}>
-                <option value={0}>No clock</option>
-                <option value={180}>3 min</option>
-                <option value={300}>5 min</option>
-                <option value={600}>10 min</option>
+              <select
+                value={`${timeControl}:${increment}`}
+                onChange={(e) => {
+                  const [base, inc] = e.target.value.split(':').map(Number);
+                  setTimeControl(base);
+                  setIncrement(inc);
+                }}
+              >
+                <option value="0:0">No clock</option>
+                <option value="180:0">3 min</option>
+                <option value="180:2">3 | 2</option>
+                <option value="300:0">5 min</option>
+                <option value="300:3">5 | 3</option>
+                <option value="600:0">10 min</option>
+                <option value="600:5">10 | 5</option>
               </select>
             </label>
           </div>
