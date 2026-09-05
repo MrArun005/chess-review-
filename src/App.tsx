@@ -25,6 +25,8 @@ import { Weakness } from './ui/Weakness';
 import { buildPuzzles } from './review/puzzles';
 import { PuzzleTrainer } from './ui/PuzzleTrainer';
 import { BoardSettingsMenu } from './ui/BoardSettingsMenu';
+import { saveGame, getGame } from './review/history';
+import { GamesList } from './ui/GamesList';
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -42,6 +44,7 @@ export function App() {
   const [mode, setMode] = useState<'review' | 'play' | 'online'>('review');
   const [analyzeFen, setAnalyzeFen] = useState<string | null>(null);
   const [training, setTraining] = useState(false);
+  const [historyKey, setHistoryKey] = useState(0);
   const [retry, setRetry] = useState<RetryState | null>(null);
   const [flipped, setFlipped] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
@@ -118,6 +121,8 @@ export function App() {
           } catch {
             /* localStorage may be unavailable — non-fatal */
           }
+          // Save to local history so it can be reopened instantly later.
+          void saveGame(r, pgn).then(() => setHistoryKey((k) => k + 1));
         }
       } catch (e) {
         if ((e as Error).name !== 'AbortError') {
@@ -139,6 +144,26 @@ export function App() {
     setReviewing(false);
     setTraining(false);
   };
+
+  // Open a saved game from local history — instant, no re-analysis.
+  const openSavedGame = useCallback(
+    async (id: string) => {
+      const g = await getGame(id);
+      if (!g) return;
+      abortRef.current?.abort();
+      resetExplore();
+      setError(null);
+      setProgress(null);
+      setReviewing(false);
+      setTraining(false);
+      setRetry(null);
+      setMode('review');
+      setPgn(g.pgn);
+      setResult(g.review);
+      setCurrent(g.review.moves.length ? 0 : -1);
+    },
+    [resetExplore]
+  );
 
   const moveCount = result?.moves.length ?? 0;
   const puzzles = useMemo(() => (result ? buildPuzzles(result) : []), [result]);
@@ -388,6 +413,7 @@ export function App() {
       {mode === 'review' && !analyzeFen && !result && !reviewing && (
         <>
           <Intake onPgn={startReview} onFen={setAnalyzeFen} />
+          <GamesList onOpen={openSavedGame} refreshKey={historyKey} />
           <Weakness />
         </>
       )}
