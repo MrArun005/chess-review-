@@ -29,6 +29,7 @@ import { saveGame, getGame } from './review/history';
 import { GamesList } from './ui/GamesList';
 import { addPuzzles, dueCards, grade, type DeckCard } from './review/deck';
 import { TrainingCard } from './ui/TrainingCard';
+import { GuessMode } from './ui/GuessMode';
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -46,6 +47,7 @@ export function App() {
   const [mode, setMode] = useState<'review' | 'play' | 'online'>('review');
   const [analyzeFen, setAnalyzeFen] = useState<string | null>(null);
   const [training, setTraining] = useState(false);
+  const [guessing, setGuessing] = useState(false);
   const [deckSession, setDeckSession] = useState<DeckCard[] | null>(null);
   const [historyKey, setHistoryKey] = useState(0);
   const [retry, setRetry] = useState<RetryState | null>(null);
@@ -107,6 +109,7 @@ export function App() {
       setProgress(null);
       setReviewing(true);
       setTraining(false);
+      setGuessing(false);
       setRetry(null);
       setCurrent(-1);
 
@@ -152,6 +155,7 @@ export function App() {
     setProgress(null);
     setReviewing(false);
     setTraining(false);
+      setGuessing(false);
   };
 
   // Open a saved game from local history — instant, no re-analysis.
@@ -165,6 +169,7 @@ export function App() {
       setProgress(null);
       setReviewing(false);
       setTraining(false);
+      setGuessing(false);
       setRetry(null);
       setMode('review');
       setPgn(g.pgn);
@@ -390,6 +395,13 @@ export function App() {
                   🧩 Train {puzzles.length}
                 </button>
               )}
+              <button
+                onClick={() => setGuessing((g) => !g)}
+                className={guessing ? 'active' : ''}
+                title="Guess the moves of this game"
+              >
+                🎯 Guess
+              </button>
               <button onClick={toggleMute}>{muted ? '🔇 Sound' : '🔊 Sound'}</button>
               <button onClick={copyLink} disabled={!pgn}>
                 {copied ? '✓ Copied' : '🔗 Share'}
@@ -475,7 +487,11 @@ export function App() {
         <PuzzleTrainer puzzles={puzzles} onExit={() => setTraining(false)} />
       )}
 
-      {mode === 'review' && result && !training && (
+      {mode === 'review' && result && guessing && !training && (
+        <GuessMode result={result} onExit={() => setGuessing(false)} />
+      )}
+
+      {mode === 'review' && result && !training && !guessing && (
         <>
           {shareFallback && (
             <div className="share-fallback">
