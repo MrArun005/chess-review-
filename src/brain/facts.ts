@@ -33,6 +33,9 @@ export interface Facts {
   materialSwing: number;
   refutationIsCapture: boolean;
 
+  /** How much material (mover POV) the best move wins that the played move didn't — a missed win. 0 if none. */
+  missedGain: number;
+
   /** Strongest motif the opponent gets, or null. */
   opponentMotif: MotifName | null;
   motifs: MotifHit[];
@@ -132,6 +135,13 @@ export function extractFacts(input: FactInput): Facts {
     ? materialSwing(fenAfter, afterLine.pv, mover)
     : 0;
 
+  // Material the best move wins that the played move gave up (a missed win).
+  const bestGain = bestUci ? materialSwing(fenBefore, bestLine.pv, mover) : 0;
+  const playedGain = materialSwing(fenBefore, [playedUci, ...afterLine.pv], mover);
+  // Only a "missed win" when the best line genuinely wins material and the
+  // played move captured clearly less of it.
+  const missedGain = bestGain >= 1 ? Math.max(0, bestGain - playedGain) : 0;
+
   // Motifs: what the opponent gets. Scan the position after the played move,
   // and the position after the refutation lands (to catch forks the refutation
   // creates).
@@ -171,6 +181,7 @@ export function extractFacts(input: FactInput): Facts {
     mateIn,
     materialSwing: swing,
     refutationIsCapture,
+    missedGain,
     opponentMotif: top?.motif ?? null,
     motifs: merged,
     hangingPiece,

@@ -36,6 +36,7 @@ export function render(template: string, facts: Facts): string {
     targets: humanTargets(facts.targets),
     motifDetail: top?.detail ?? '',
     topFeatureDelta: facts.topFeatureDelta,
+    missedPiece: missedPieceName(facts.missedGain),
   };
 
   return template
@@ -43,6 +44,16 @@ export function render(template: string, facts: Facts): string {
     .replace(/\s{2,}/g, ' ')
     .replace(/\s+([.,;])/g, '$1')
     .trim();
+}
+
+/** Name the missed material by its point value: pawn / the exchange / a piece / rook / queen. */
+function missedPieceName(gain: number): string {
+  if (gain >= 8.5) return 'a queen';
+  if (gain >= 4.5) return 'a rook';
+  if (gain >= 2.5) return 'a piece';
+  if (gain >= 1.5) return 'the exchange';
+  if (gain >= 1) return 'a pawn';
+  return 'material';
 }
 
 /** "e5, g6 and c7" style joining of target squares. */

@@ -10,6 +10,7 @@ interface When {
   refutationIsCapture?: boolean;
   opponentMotif?: string;
   materialSwing?: Comparator;
+  missedGain?: Comparator;
   drop?: Comparator;
 }
 
@@ -69,6 +70,7 @@ function matches(when: When, f: Facts): boolean {
   if (when.opponentMotif !== undefined && when.opponentMotif !== f.opponentMotif)
     return false;
   if (when.materialSwing && !cmp(f.materialSwing, when.materialSwing)) return false;
+  if (when.missedGain && !cmp(f.missedGain, when.missedGain)) return false;
   if (when.drop && !cmp(f.drop, when.drop)) return false;
   return true;
 }

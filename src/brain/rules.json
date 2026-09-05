@@ -83,6 +83,17 @@
     ]
   },
   {
+    "id": "missed-material",
+    "priority": 70,
+    "category": "tactic",
+    "when": { "missedGain": { "gte": 1 } },
+    "say": [
+      "You could have won {{missedPiece}} — {{best}} wins material.",
+      "{{best}} was winning {{missedPiece}} here.",
+      "Missed a chance: {{best}} picks up {{missedPiece}}."
+    ]
+  },
+  {
     "id": "drops-material-quiet",
     "priority": 60,
     "category": "tactic",
