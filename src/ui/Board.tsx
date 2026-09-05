@@ -3,6 +3,7 @@ import { Chessboard } from 'react-chessboard';
 import { Chess } from 'chess.js';
 import { CLASS_COLOR, CLASS_ICON, type MoveClass } from '../review/classify';
 import { useBoardSettings, THEMES } from './boardSettings';
+import { PIECE_SVG } from './pieceSvgs';
 
 type Arrows = ComponentProps<typeof Chessboard>['customArrows'];
 
@@ -57,6 +58,7 @@ export function Board({
   onCancelPremove,
 }: Props) {
   const [selected, setSelected] = useState<string | null>(null);
+  const [pendingPromo, setPendingPromo] = useState<{ from: string; to: string; color: 'w' | 'b' } | null>(null);
   const { theme, coords } = useBoardSettings();
   const palette = THEMES[theme];
 
@@ -126,12 +128,26 @@ export function Board({
       }
       // Otherwise treat as the destination (any square in premove mode).
       if (premoveMode || dests.includes(square)) {
-        commit(selected, square, isPromotion(selected, square) ? 'q' : undefined);
+        if (!premoveMode && isPromotion(selected, square)) {
+          const p = board?.get(selected as never);
+          setPendingPromo({ from: selected, to: square, color: (p?.color as 'w' | 'b') ?? activeColor });
+          setSelected(null);
+          return;
+        }
+        commit(selected, square);
       }
       setSelected(null);
       return;
     }
     if (ownsPiece(square)) setSelected(square);
+  };
+
+  const choosePromo = (piece: 'q' | 'r' | 'b' | 'n') => {
+    if (!pendingPromo) return;
+    const { from, to } = pendingPromo;
+    setPendingPromo(null);
+    setSelected(null);
+    commit(from, to, piece);
   };
 
   const squareStyles: Record<string, React.CSSProperties> = {};
@@ -167,11 +183,17 @@ export function Board({
         }}
         onSquareClick={handleSquareClick}
         onSquareRightClick={() => onCancelPremove?.()}
-        onPromotionPieceSelect={(piece, from, to) => {
-          // Fired when the user picks a piece from the built-in promotion
-          // dialog. `piece` is like "wQ"; forward its lowercase type.
-          if (!piece || !from || !to) return false;
-          return commit(from, to, piece[1].toLowerCase());
+        onPromotionCheck={(from, to, piece) => {
+          // Intercept promotions to show our own centered picker instead of
+          // react-chessboard's dialog (which can render off-screen on mobile).
+          const isPromo =
+            !!piece &&
+            piece[1]?.toLowerCase() === 'p' &&
+            ((piece[0] === 'w' && to[1] === '8') || (piece[0] === 'b' && to[1] === '1'));
+          if (isPromo && !premoveMode) {
+            setPendingPromo({ from, to, color: piece[0] as 'w' | 'b' });
+          }
+          return false; // never use the built-in dialog
         }}
         showBoardNotation={coords}
         customBoardStyle={{ borderRadius: '6px' }}
@@ -189,9 +211,38 @@ export function Board({
       {mateSquare && (
         <MateMarker square={mateSquare} boardWidth={boardWidth} orientation={boardOrientation} />
       )}
+      {pendingPromo && (
+        <div
+          className="promo-overlay"
+          onClick={() => setPendingPromo(null)}
+          role="dialog"
+          aria-label="Choose promotion piece"
+        >
+          <div className="promo-card" onClick={(e) => e.stopPropagation()}>
+            {(['q', 'r', 'b', 'n'] as const).map((t) => (
+              <button
+                key={t}
+                className="promo-choice"
+                style={{ width: Math.round(boardWidth / 5), height: Math.round(boardWidth / 5) }}
+                onClick={() => choosePromo(t)}
+                aria-label={PROMO_LABEL[t]}
+                title={PROMO_LABEL[t]}
+                dangerouslySetInnerHTML={{ __html: PIECE_SVG[pendingPromo.color + t.toUpperCase()] ?? '' }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+const PROMO_LABEL: Record<'q' | 'r' | 'b' | 'n', string> = {
+  q: 'Queen',
+  r: 'Rook',
+  b: 'Bishop',
+  n: 'Knight',
+};
 
 /** A checkmate marker centered on the mated king's square. */
 function MateMarker({
