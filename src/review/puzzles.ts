@@ -21,6 +21,8 @@ export interface Puzzle {
   moveNumber: number;
   /** Plain-English reason the played move was bad, if the review produced one. */
   explanation: string | null;
+  /** Stable id (set by the spaced-repetition deck). */
+  id?: string;
 }
 
 const TRAINABLE: MoveClass[] = ['blunder', 'mistake', 'miss'];

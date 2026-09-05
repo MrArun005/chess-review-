@@ -7,6 +7,10 @@ import type { Puzzle } from '../review/puzzles';
 interface Props {
   puzzles: Puzzle[];
   onExit: () => void;
+  /** Fired once per puzzle when it resolves — correct = solved first try, no reveal. */
+  onResult?: (puzzle: Puzzle, correct: boolean) => void;
+  /** Label for the back button (default "Back to review"). */
+  backLabel?: string;
 }
 
 type Status = 'solving' | 'solved' | 'revealed';
@@ -16,8 +20,14 @@ type Status = 'solving' | 'solved' | 'revealed';
  * up and you have to find the move the engine wanted. Judging is a straight UCI
  * comparison against the best move the review already computed — no engine here.
  */
-export function PuzzleTrainer({ puzzles, onExit }: Props) {
+export function PuzzleTrainer({ puzzles, onExit, onResult, backLabel = 'Back to review' }: Props) {
   const [idx, setIdx] = useState(0);
+  const reported = useRef<Set<number>>(new Set());
+  const report = (correct: boolean) => {
+    if (reported.current.has(idx)) return;
+    reported.current.add(idx);
+    onResult?.(puzzle, correct);
+  };
   const [status, setStatus] = useState<Status>('solving');
   const [attempts, setAttempts] = useState(0);
   const [wrongSan, setWrongSan] = useState<string | null>(null);
@@ -75,6 +85,7 @@ export function PuzzleTrainer({ puzzles, onExit }: Props) {
       setLastMove({ from: mv.from, to: mv.to });
       setStatus('solved');
       solved.add(idx);
+      report(attempts === 0);
       return true;
     }
     // Wrong — let them try again (snap the piece back).
@@ -99,6 +110,7 @@ export function PuzzleTrainer({ puzzles, onExit }: Props) {
       /* ignore */
     }
     setStatus('revealed');
+    report(false);
   };
 
   const go = (delta: number) => setIdx((i) => Math.max(0, Math.min(puzzles.length - 1, i + delta)));
@@ -109,7 +121,7 @@ export function PuzzleTrainer({ puzzles, onExit }: Props) {
   return (
     <>
       <div className="puzzle-head">
-        <button onClick={onExit}>← Back to review</button>
+        <button onClick={onExit}>← {backLabel}</button>
         <span className="note">
           Puzzle {idx + 1} / {puzzles.length}
         </span>

@@ -27,6 +27,8 @@ import { PuzzleTrainer } from './ui/PuzzleTrainer';
 import { BoardSettingsMenu } from './ui/BoardSettingsMenu';
 import { saveGame, getGame } from './review/history';
 import { GamesList } from './ui/GamesList';
+import { addPuzzles, dueCards, grade, type DeckCard } from './review/deck';
+import { TrainingCard } from './ui/TrainingCard';
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -44,6 +46,7 @@ export function App() {
   const [mode, setMode] = useState<'review' | 'play' | 'online'>('review');
   const [analyzeFen, setAnalyzeFen] = useState<string | null>(null);
   const [training, setTraining] = useState(false);
+  const [deckSession, setDeckSession] = useState<DeckCard[] | null>(null);
   const [historyKey, setHistoryKey] = useState(0);
   const [retry, setRetry] = useState<RetryState | null>(null);
   const [flipped, setFlipped] = useState(false);
@@ -123,6 +126,12 @@ export function App() {
           }
           // Save to local history so it can be reopened instantly later.
           void saveGame(r, pgn).then(() => setHistoryKey((k) => k + 1));
+          // Feed this game's mistakes into the spaced-repetition deck.
+          try {
+            addPuzzles(buildPuzzles(r));
+          } catch {
+            /* ignore */
+          }
         }
       } catch (e) {
         if ((e as Error).name !== 'AbortError') {
@@ -410,9 +419,24 @@ export function App() {
         />
       )}
 
-      {mode === 'review' && !analyzeFen && !result && !reviewing && (
+      {mode === 'review' && deckSession && (
+        <PuzzleTrainer
+          puzzles={deckSession}
+          backLabel="Done"
+          onResult={(p, ok) => {
+            if (p.id) grade(p.id, ok);
+          }}
+          onExit={() => {
+            setDeckSession(null);
+            setHistoryKey((k) => k + 1);
+          }}
+        />
+      )}
+
+      {mode === 'review' && !deckSession && !analyzeFen && !result && !reviewing && (
         <>
           <Intake onPgn={startReview} onFen={setAnalyzeFen} />
+          <TrainingCard onStart={() => setDeckSession(dueCards())} refreshKey={historyKey} />
           <GamesList onOpen={openSavedGame} refreshKey={historyKey} />
           <Weakness />
         </>
