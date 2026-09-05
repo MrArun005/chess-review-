@@ -1,0 +1,161 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    body { margin: 0; font-family: 'Inter', system-ui, sans-serif; background: #1c1a18; color: #ecebe6; -webkit-font-smoothing: antialiased; }
+    a { color: #6b9dc2; } a:hover { color: #86b4d6; }
+    .card { background: #2a2724; border: 1px solid #37332e; border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
+    .h3 { margin: 0 0 11px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .09em; color: #79746c; }
+    .sq { display: flex; align-items: center; justify-content: center; font-size: 44px; line-height: 1; position: relative; }
+    .pw { color: #f7f5ef; text-shadow: 0 1px 1px rgba(0,0,0,.45); }
+    .pb { color: #23211d; text-shadow: 0 1px 0 rgba(255,255,255,.12); }
+    .btn { display: flex; align-items: center; justify-content: center; gap: 6px; height: 40px; border-radius: 9px; background: #322f2b; border: 1px solid #37332e; font-size: 13.5px; font-weight: 600; color: #ecebe6; }
+    .sel { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: #a39e95; }
+    .selbox { height: 40px; border-radius: 9px; background: #211f1c; border: 1px solid #37332e; display: flex; align-items: center; padding: 0 12px; color: #ecebe6; font-size: 14px; justify-content: space-between; }
+  </style>
+</helmet>
+
+<div style="width: 1440px; height: 940px; padding: 26px 30px; box-sizing: border-box; background: radial-gradient(1200px 620px at 50% -12%, #211f1c 0%, #1c1a18 58%); display: flex; flex-direction: column; gap: 20px;">
+
+  <div style="display: flex; align-items: flex-end; justify-content: space-between;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <span style="font-size: 26px; color: #81b64c;">&#9823;</span>
+      <span style="font-size: 25px; font-weight: 800; letter-spacing: -.02em;">Chess Review</span>
+    </div>
+    <div style="display: flex; gap: 8px; align-items: center;">
+      <div style="display: flex; gap: 4px; background: #211f1c; padding: 4px; border-radius: 10px;">
+        <div style="padding: 7px 18px; border-radius: 7px; color: #a39e95; font-weight: 600; font-size: 14px;">Review</div>
+        <div style="padding: 7px 18px; border-radius: 7px; background: #322f2b; color: #ecebe6; font-weight: 600; font-size: 14px;">Play</div>
+        <div style="padding: 7px 18px; border-radius: 7px; color: #a39e95; font-weight: 600; font-size: 14px;">Friend</div>
+      </div>
+      <div style="width: 38px; height: 38px; border: 1px solid #37332e; border-radius: 9px; background: #2a2724; display: flex; align-items: center; justify-content: center;">&#9881;</div>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 384px; gap: 22px; flex-grow: 1; min-height: 0;">
+
+    <!-- left column -->
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 10px; min-width: 0;">
+
+      <!-- coach hint panel -->
+      <div class="card" style="width: 660px; border-left: 3px solid #81b64c; padding: 12px 16px; min-height: 62px; display: flex; flex-direction: column; justify-content: center; gap: 6px;">
+        <div style="display: flex; align-items: center; gap: 9px;">
+          <span style="font-size: 11px; font-weight: 800; color: #17210c; background: #81b64c; border-radius: 999px; padding: 3px 10px;">EXCELLENT</span>
+          <span style="font-size: 14px;"><strong>d4</strong> &mdash; frees your pieces and grabs the centre.</span>
+        </div>
+        <div style="font-size: 13.5px; font-weight: 600; color: #a3d160;">Hint: play Nc3 to develop with tempo.</div>
+      </div>
+
+      <!-- player bar: engine -->
+      <div style="width: 660px; display: flex; align-items: center; gap: 10px;">
+        <span style="font-weight: 700; font-size: 14px;">Engine</span>
+        <span style="display: inline-flex; align-items: center; background: linear-gradient(180deg,#f3f0e6,#e6e1d3); border: 1px solid rgba(0,0,0,.2); border-radius: 999px; padding: 3px 9px;">
+          <span style="font-size: 18px; color: #f6f2ea; -webkit-text-stroke: .9px #23211d;">&#9817;</span>
+        </span>
+        <span style="margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 700; font-size: 15px; padding: 4px 12px; border-radius: 8px; background: #211f1c; border: 1px solid #37332e; color: #a39e95;">9:58</span>
+      </div>
+
+      <!-- board -->
+      <div style="width: 620px; height: 620px; border-radius: 8px; overflow: hidden; box-shadow: 0 10px 34px rgba(0,0,0,.45); display: grid; grid-template-columns: repeat(8, minmax(0,1fr)); grid-template-rows: repeat(8, minmax(0,1fr));">
+        <sc-for list="{{squares}}" as="s" hint-placeholder-count="64">
+          <div class="sq" style="background: {{s.bg}};">
+            <sc-if value="{{s.hl}}" hint-placeholder-val="{{false}}"><div style="position: absolute; inset: 0; background: rgba(229,193,76,.32); box-shadow: inset 0 0 0 3px rgba(229,193,76,.6);"></div></sc-if>
+            <span class="{{s.cls}}" style="position: relative;">{{s.g}}</span>
+          </div>
+        </sc-for>
+      </div>
+
+      <!-- player bar: you (turn active clock) -->
+      <div style="width: 660px; display: flex; align-items: center; gap: 10px;">
+        <span style="font-weight: 700; font-size: 14px;">You (White)</span>
+        <span style="display: inline-flex; align-items: center; background: linear-gradient(180deg,#f3f0e6,#e6e1d3); border: 1px solid rgba(0,0,0,.2); border-radius: 999px; padding: 3px 9px;">
+          <span style="font-size: 18px; color: #23211d; -webkit-text-stroke: .9px #d7d2c6;">&#9822;</span>
+        </span>
+        <span style="margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 700; font-size: 15px; padding: 4px 12px; border-radius: 8px; background: rgba(129,182,76,.16); border: 1px solid rgba(129,182,76,.55); color: #ecebe6;">9:59</span>
+      </div>
+    </div>
+
+    <!-- sidebar -->
+    <div style="display: flex; flex-direction: column; gap: 14px; min-width: 0;">
+      <!-- status -->
+      <div class="card" style="padding: 16px;">
+        <div class="h3">Status</div>
+        <div style="font-weight: 600; font-size: 14px; margin-bottom: 12px;">Your move.</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div class="btn">&#8645; Flip</div>
+          <div class="btn">&#8617; Takeback</div>
+          <div class="btn">&#128161; Hint</div>
+          <div class="btn">&#127937; Resign</div>
+          <div class="btn" style="grid-column: 1 / -1; color: #a3d160; border-color: rgba(129,182,76,.4);">&#129504; Coach: On</div>
+        </div>
+      </div>
+
+      <!-- play the engine -->
+      <div class="card" style="padding: 16px;">
+        <div class="h3">Play the engine</div>
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="sel">Strength<div class="selbox"><span>Easy (~1200)</span><span style="color:#79746c;">&#9662;</span></div></div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div class="sel">You play<div class="selbox"><span>White</span><span style="color:#79746c;">&#9662;</span></div></div>
+            <div class="sel">Clock<div class="selbox"><span>10 min</span><span style="color:#79746c;">&#9662;</span></div></div>
+          </div>
+          <div style="height: 44px; border-radius: 9px; background: #81b64c; color: #17210c; font-weight: 800; font-size: 15px; display: flex; align-items: center; justify-content: center;">New game</div>
+        </div>
+      </div>
+
+      <!-- moves -->
+      <div class="card" style="padding: 14px 16px; flex-grow: 1;">
+        <div class="h3">Moves</div>
+        <div style="display: grid; grid-template-columns: 26px 1fr 1fr; row-gap: 3px; column-gap: 6px; font-size: 13.5px;">
+          <sc-for list="{{moverows}}" as="m" hint-placeholder-count="5">
+            <div style="color: #79746c; font-variant-numeric: tabular-nums; padding: 2px 0;">{{m.no}}</div>
+            <div style="padding: 2px 6px; border-radius: 6px; background: {{m.wbg}};">{{m.w}}</div>
+            <div style="padding: 2px 6px;">{{m.b}}</div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"$preview":{"width":1440,"height":940}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const GLY = { P:'♙', N:'♘', B:'♗', R:'♖', Q:'♕', K:'♔', p:'♟', n:'♞', b:'♝', r:'♜', q:'♛', k:'♚' };
+    const pos = [
+      'rnbqkbnr',
+      'ppp..ppp',
+      '....p...',
+      '...p....',
+      '...PP...',
+      '.....N..',
+      'PPP..PPP',
+      'RNBQKB.R',
+    ];
+    const hl = { '4-3': true, '6-3': true };
+    const squares = [];
+    for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
+      const ch = pos[r][c]; const light = (r + c) % 2 === 0;
+      squares.push({ bg: light ? '#eeeed2' : '#769656', g: ch === '.' ? '' : GLY[ch], cls: ch === '.' ? '' : (ch === ch.toUpperCase() ? 'pw' : 'pb'), hl: !!hl[r+'-'+c] });
+    }
+    const A = '#211f1c00', G = 'rgba(129,182,76,.14)';
+    const moverows = [
+      { no:'1.', w:'e4', wbg:A, b:'e6' },
+      { no:'2.', w:'d4', wbg:G, b:'d5' },
+      { no:'3.', w:'Nf3', wbg:A, b:'Nf6' },
+      { no:'4.', w:'', wbg:A, b:'' },
+    ];
+    return { squares, moverows };
+  }
+}
+</script>
+</body>
+</html>

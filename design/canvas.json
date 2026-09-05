@@ -1,0 +1,11 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 1440, "h": 940, "title": "Review — desktop" },
+    { "file": "Play.dc.html", "x": 1560, "y": 0, "w": 1440, "h": 940, "title": "Play vs Engine — desktop" },
+    { "file": "Mobile.dc.html", "x": 3120, "y": 0, "w": 390, "h": 1180, "title": "Review — iPhone" }
+  ],
+  "annotations": [
+    { "id": "note-brief", "x": 0, "y": -150, "w": 520, "text": "Chess Review — refined visual direction.\nKeeps the app's palette (bg #1c1a18, accent #81b64c, board #769656/#eeeed2) and elevates typography, spacing, card hierarchy and the captured/coach plates. Static mockups to approve before I implement in code." }
+  ],
+  "launch": { "view": "canvas" }
+}

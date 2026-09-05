@@ -1,0 +1,129 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    body { margin: 0; font-family: 'Inter', system-ui, sans-serif; background: #1c1a18; color: #ecebe6; -webkit-font-smoothing: antialiased; }
+    .card { background: #2a2724; border: 1px solid #37332e; border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
+    .h3 { margin: 0 0 9px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .09em; color: #79746c; }
+    .sq { display: flex; align-items: center; justify-content: center; font-size: 26px; line-height: 1; position: relative; }
+    .pw { color: #f7f5ef; text-shadow: 0 1px 1px rgba(0,0,0,.45); }
+    .pb { color: #23211d; }
+  </style>
+</helmet>
+
+<div style="width: 390px; height: 1180px; padding: 14px; box-sizing: border-box; background: #1c1a18; display: flex; flex-direction: column; gap: 12px;">
+
+  <!-- compact header -->
+  <div style="display: flex; align-items: center; justify-content: space-between;">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span style="font-size: 20px; color: #81b64c;">&#9823;</span>
+      <span style="font-size: 19px; font-weight: 800;">Chess Review</span>
+    </div>
+    <span style="font-size: 22px; color: #a39e95;">&#9881;</span>
+  </div>
+  <div style="display: flex; gap: 4px; background: #211f1c; padding: 4px; border-radius: 10px;">
+    <div style="flex: 1; text-align: center; padding: 8px; border-radius: 7px; background: #322f2b; font-weight: 700; font-size: 14px;">Review</div>
+    <div style="flex: 1; text-align: center; padding: 8px; border-radius: 7px; color: #a39e95; font-weight: 600; font-size: 14px;">Play</div>
+    <div style="flex: 1; text-align: center; padding: 8px; border-radius: 7px; color: #a39e95; font-weight: 600; font-size: 14px;">Friend</div>
+  </div>
+
+  <!-- captured top -->
+  <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700;">Opponent
+    <span style="background: linear-gradient(180deg,#f3f0e6,#e6e1d3); border: 1px solid rgba(0,0,0,.2); border-radius: 999px; padding: 2px 8px; font-size: 16px; color: #f6f2ea; -webkit-text-stroke: .8px #23211d;">&#9817;&#9817;</span>
+  </div>
+
+  <!-- board fills width -->
+  <div style="display: flex; gap: 8px;">
+    <div style="width: 18px; border-radius: 6px; background: #14120f; position: relative;">
+      <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 62%; background: #f4f1e6;"></div>
+    </div>
+    <div style="flex: 1; aspect-ratio: 1 / 1; border-radius: 8px; overflow: hidden; box-shadow: 0 8px 26px rgba(0,0,0,.45); display: grid; grid-template-columns: repeat(8, minmax(0,1fr)); grid-template-rows: repeat(8, minmax(0,1fr));">
+      <sc-for list="{{squares}}" as="s" hint-placeholder-count="64">
+        <div class="sq" style="background: {{s.bg}};">
+          <sc-if value="{{s.hl}}" hint-placeholder-val="{{false}}"><div style="position: absolute; inset: 0; background: rgba(229,193,76,.32);"></div></sc-if>
+          <span class="{{s.cls}}" style="position: relative;">{{s.g}}</span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- captured bottom -->
+  <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700;">You
+    <span style="background: linear-gradient(180deg,#f3f0e6,#e6e1d3); border: 1px solid rgba(0,0,0,.2); border-radius: 999px; padding: 2px 8px; font-size: 16px; color: #23211d; -webkit-text-stroke: .8px #d7d2c6;">&#9822;&#9823;&#9823;</span>
+    <span style="font-size: 11px; font-weight: 800; color: #2a2723; background: rgba(0,0,0,.12); border-radius: 999px; padding: 1px 7px;">+2</span>
+  </div>
+
+  <!-- move detail -->
+  <div class="card" style="padding: 12px; border-left: 3px solid #f7c631;">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span style="font-size: 10px; font-weight: 800; color: #17210c; background: #f7c631; border-radius: 999px; padding: 2px 8px;">?!</span>
+      <span style="font-weight: 700; font-size: 14px;">12&hellip; Bg4</span>
+      <span style="margin-left: auto; color: #a39e95; font-size: 11.5px;">58&rarr;52% &middot; 71</span>
+    </div>
+    <div style="margin-top: 7px; font-size: 13px; line-height: 1.45;"><strong style="color:#a3d160;">You could have won a pawn</strong> &mdash; <strong>Nxe4</strong> wins material.</div>
+  </div>
+
+  <!-- nav -->
+  <div style="display: flex; gap: 6px;">
+    <sc-for list="{{nav}}" as="n" hint-placeholder-count="5">
+      <div style="flex: 1; height: 42px; display: flex; align-items: center; justify-content: center; background: #2a2724; border: 1px solid #37332e; border-radius: 9px; font-size: 16px;">{{n}}</div>
+    </sc-for>
+  </div>
+
+  <!-- accuracy row -->
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+    <div class="card" style="padding: 12px; text-align: center;">
+      <div style="font-size: 28px; font-weight: 800; color: #81b64c; line-height: 1;">90.3</div>
+      <div style="font-size: 11px; color: #a39e95; margin-top: 4px;">White accuracy</div>
+    </div>
+    <div class="card" style="padding: 12px; text-align: center;">
+      <div style="font-size: 28px; font-weight: 800; color: #ffa459; line-height: 1;">67.1</div>
+      <div style="font-size: 11px; color: #a39e95; margin-top: 4px;">Black accuracy</div>
+    </div>
+  </div>
+
+  <!-- moves -->
+  <div class="card" style="padding: 12px; flex-grow: 1;">
+    <div class="h3">Moves</div>
+    <div style="display: grid; grid-template-columns: 22px 1fr 1fr; row-gap: 2px; column-gap: 6px; font-size: 13px;">
+      <sc-for list="{{moverows}}" as="m" hint-placeholder-count="5">
+        <div style="color: #79746c; font-variant-numeric: tabular-nums;">{{m.no}}</div>
+        <div style="padding: 2px 6px; border-radius: 6px; background: {{m.wbg}};">{{m.w}}</div>
+        <div style="padding: 2px 6px; border-radius: 6px; background: {{m.bbg}};">{{m.b}}</div>
+      </sc-for>
+    </div>
+  </div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"$preview":{"width":390,"height":1180}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const GLY = { P:'♙', N:'♘', B:'♗', R:'♖', Q:'♕', K:'♔', p:'♟', n:'♞', b:'♝', r:'♜', q:'♛', k:'♚' };
+    const pos = ['...r.rk.','pp...pbp','..np.np.','....p...','..B.P...','..NP.N..','PP...PPP','R.BQ.RK.'];
+    const hl = { '4-4': true, '3-4': true };
+    const squares = [];
+    for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
+      const ch = pos[r][c]; const light = (r + c) % 2 === 0;
+      squares.push({ bg: light ? '#eeeed2' : '#769656', g: ch === '.' ? '' : GLY[ch], cls: ch === '.' ? '' : (ch === ch.toUpperCase() ? 'pw' : 'pb'), hl: !!hl[r+'-'+c] });
+    }
+    const A = '#211f1c00', Y = 'rgba(247,198,49,.16)';
+    const moverows = [
+      { no:'4.', w:'c3', wbg:A, b:'Nf6', bbg:A },
+      { no:'5.', w:'d3', wbg:A, b:'d6', bbg:A },
+      { no:'6.', w:'O-O', wbg:A, b:'a6', bbg:Y },
+      { no:'7.', w:'Nbd2', wbg:A, b:'Bg4', bbg:Y },
+    ];
+    return { squares, moverows, nav: ['⏮','←','→','⏭','⇅'] };
+  }
+}
+</script>
+</body>
+</html>
