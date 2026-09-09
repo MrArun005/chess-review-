@@ -55,9 +55,9 @@ export function EngineLines({ fen, analyze, onPlay, depth = 16, multipv = 3 }: P
   }, [open, fen, analyze, depth, multipv]);
 
   return (
-    <div className="card lines">
+    <div className="section lines">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3 style={{ margin: 0 }}>Engine lines</h3>
+        <div className="section-title" style={{ margin: 0 }}>Engine lines</div>
         <button onClick={() => setOpen((o) => !o)}>{open ? 'Hide' : 'Show'}</button>
       </div>
 

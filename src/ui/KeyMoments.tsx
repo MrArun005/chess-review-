@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { CLASS_LABEL, CLASS_COLOR } from '../review/classify';
+import { ClassIcon } from './ClassIcon';
 import type { ReviewedMove } from '../review/pipeline';
 
 interface Props {
@@ -21,17 +21,16 @@ export function KeyMoments({ moves, onSelect }: Props) {
   if (top.length === 0) return null;
 
   return (
-    <div className="card">
-      <h3>Key moments</h3>
+    <div className="section">
+      <div className="section-title">Key moments</div>
       {top.map((m) => (
         <div className="moment" key={m.ply} onClick={() => onSelect(m.ply)}>
-          <span>
+          <ClassIcon cls={m.classification} size={15} />
+          <span className="moment-san">
             {m.moveNumber}
-            {m.color === 'w' ? '.' : '...'} {m.san}{' '}
-            <span style={{ color: CLASS_COLOR[m.classification] }}>
-              {CLASS_LABEL[m.classification]}
-            </span>
+            {m.color === 'w' ? '.' : '...'} {m.san}
           </span>
+          <span className="moment-who">{m.color === 'w' ? 'White' : 'Black'}</span>
           <span className="note">−{Math.round(m.drop)}%</span>
         </div>
       ))}

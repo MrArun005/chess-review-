@@ -1,4 +1,5 @@
-import { CLASS_ICON, CLASS_COLOR } from '../review/classify';
+import { useEffect, useRef } from 'react';
+import { ClassIcon } from './ClassIcon';
 import type { ReviewedMove } from '../review/pipeline';
 
 interface Props {
@@ -7,9 +8,8 @@ interface Props {
   onSelect: (ply: number) => void;
 }
 
-/** Two-column SAN move list with per-move badge glyphs. */
+/** Dense two-column move list with classification markers; keeps the current move in view. */
 export function MoveList({ moves, current, onSelect }: Props) {
-  // Group plies into full moves.
   const rows: { num: number; white?: ReviewedMove; black?: ReviewedMove }[] = [];
   for (const m of moves) {
     const last = rows[rows.length - 1];
@@ -20,25 +20,40 @@ export function MoveList({ moves, current, onSelect }: Props) {
     }
   }
 
+  const activeRef = useRef<HTMLSpanElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  // Keep the current move visible by scrolling the LIST only — scrollIntoView
+  // would also scroll the page and yank the board out of view.
+  useEffect(() => {
+    const el = activeRef.current;
+    const list = listRef.current;
+    if (!el || !list) return;
+    const top = el.offsetTop;
+    const bottom = top + el.offsetHeight;
+    if (top < list.scrollTop || bottom > list.scrollTop + list.clientHeight) {
+      list.scrollTop = Math.max(0, top - list.clientHeight / 2 + el.offsetHeight / 2);
+    }
+  }, [current]);
+
   const cell = (m?: ReviewedMove) => {
     if (!m) return <span className="cell" />;
+    const active = current === m.ply;
     return (
       <span
-        className={`cell ${current === m.ply ? 'active' : ''}`}
+        className={`cell ${active ? 'active' : ''}`}
         onClick={() => onSelect(m.ply)}
+        ref={active ? activeRef : undefined}
       >
-        <span>{m.san}</span>
-        <span className="badge" style={{ color: CLASS_COLOR[m.classification] }}>
-          {CLASS_ICON[m.classification]}
-        </span>
+        <ClassIcon cls={m.classification} size={15} />
+        <span className="san">{m.san}</span>
       </span>
     );
   };
 
   return (
-    <div className="movelist">
+    <div className="movelist" ref={listRef}>
       {rows.map((r, i) => (
-        <div style={{ display: 'contents' }} key={i}>
+        <div className={`mrow ${i % 2 ? 'odd' : ''}`} key={i}>
           <div className="num">{r.num}.</div>
           {cell(r.white)}
           {cell(r.black)}

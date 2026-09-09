@@ -13,7 +13,8 @@ import { PlayMode } from './ui/PlayMode';
 import { OnlinePlay } from './ui/OnlinePlay';
 import { AnalyzeMode } from './ui/AnalyzeMode';
 import { OfflineButton } from './ui/OfflineButton';
-import { CapturedTray, computeCaptured } from './ui/Captured';
+import { computeCaptured } from './ui/Captured';
+import { PlayerRow } from './ui/PlayerRow';
 import { sound } from './ui/sound';
 import { useExplore } from './ui/useExplore';
 import { useAnalysisEngine } from './ui/useAnalysisEngine';
@@ -82,7 +83,7 @@ export function App() {
     const el = boardCol.current;
     if (!el) return;
     const compute = () => {
-      const colW = el.clientWidth - 34; // leave room for the eval bar + gap
+      const colW = el.clientWidth - 38; // leave room for the eval bar + gap
       const viewH = window.innerHeight - 200;
       setBoardWidth(Math.max(240, Math.min(880, colW, viewH)));
     };
@@ -271,6 +272,18 @@ export function App() {
 
   // Captured pieces + material advantage for the position on screen.
   const captured = computeCaptured(displayFen);
+  const whiteName = result?.headers.White?.trim() || 'White';
+  const blackName = result?.headers.Black?.trim() || 'Black';
+  const sideToMove: 'w' | 'b' = displayFen.split(/\s+/)[1] === 'b' ? 'b' : 'w';
+  const navButtons = (
+    <>
+      <button onClick={() => goTo(-1)} title="Start">⏮</button>
+      <button onClick={() => step(-1)} title="Previous move">←</button>
+      <button onClick={() => step(1)} title="Next move">→</button>
+      <button onClick={() => goTo(moveCount - 1)} title="End">⏭</button>
+      <button onClick={() => setFlipped((f) => !f)} title="Flip board">⇅</button>
+    </>
+  );
 
   // "Find the better move" — retry a mistake in place on the review board.
   const canRetry =
@@ -350,7 +363,7 @@ export function App() {
 
   return (
     <div className="app">
-      <div className="masthead">
+      <div className={`masthead ${result ? 'compact' : ''}`}>
         <div>
           <h1>
             <span className="logo">♟</span> Chess Review
@@ -505,132 +518,157 @@ export function App() {
             </div>
           )}
           <div className="review">
-            <div>
-              <CapturedTray info={captured} side={flipped ? 'w' : 'b'} offset={19} />
-              <div className="board-col" ref={boardCol}>
-                <EvalBar winWhite={winWhite} />
-                <div className="board-wrap">
-                  <Board
-                    fen={boardFen}
-                    bestUci={boardBestUci}
-                    playedFrom={boardHlFrom}
-                    playedTo={boardHlTo}
-                    playedClass={explore || retryActive ? undefined : move?.classification}
-                    badge={
-                      !explore && !retryActive && move
-                        ? { square: move.uci.slice(2, 4), cls: move.classification }
-                        : null
-                    }
-                    mateSquare={!retryActive && gameEnd?.kind === 'mate' ? gameEnd.kingSquare : null}
-                    boardWidth={boardWidth}
-                    boardOrientation={flipped ? 'black' : 'white'}
-                    onPieceDrop={boardDrop}
+            <div className="board-col" ref={boardCol}>
+              <div className="board-stage" style={{ width: boardWidth + 38 }}>
+                <PlayerRow
+                  name={flipped ? whiteName : blackName}
+                  elo={flipped ? result.headers.WhiteElo : result.headers.BlackElo}
+                  color={flipped ? 'w' : 'b'}
+                  captured={captured}
+                  active={sideToMove === (flipped ? 'w' : 'b')}
+                />
+                <div className="board-row">
+                  <EvalBar winWhite={winWhite} />
+                  <div className="board-wrap">
+                    <Board
+                      fen={boardFen}
+                      bestUci={boardBestUci}
+                      playedFrom={boardHlFrom}
+                      playedTo={boardHlTo}
+                      playedClass={explore || retryActive ? undefined : move?.classification}
+                      badge={
+                        !explore && !retryActive && move
+                          ? { square: move.uci.slice(2, 4), cls: move.classification }
+                          : null
+                      }
+                      mateSquare={!retryActive && gameEnd?.kind === 'mate' ? gameEnd.kingSquare : null}
+                      boardWidth={boardWidth}
+                      boardOrientation={flipped ? 'black' : 'white'}
+                      onPieceDrop={boardDrop}
+                    />
+                  </div>
+                </div>
+                <PlayerRow
+                  name={flipped ? blackName : whiteName}
+                  elo={flipped ? result.headers.BlackElo : result.headers.WhiteElo}
+                  color={flipped ? 'b' : 'w'}
+                  captured={captured}
+                  active={sideToMove === (flipped ? 'b' : 'w')}
+                />
+
+                {gameEnd && !explore ? (
+                  <div className={`game-end ${gameEnd.kind}`}>
+                    {gameEnd.kind === 'mate'
+                      ? `♚ Checkmate — ${gameEnd.winner} wins`
+                      : gameEnd.kind === 'stalemate'
+                        ? '½ Stalemate — draw'
+                        : '½ Draw'}
+                  </div>
+                ) : null}
+
+                {retryActive && retry ? (
+                  <div className="card under-board">
+                    <div className="explore-head">
+                      <strong>Find the better move</strong>
+                      <button onClick={() => setRetry(null)}>⟲ Back to game</button>
+                    </div>
+                    <p className="note" style={{ marginTop: 0 }}>
+                      {retry.color === 'w' ? 'White' : 'Black'} to move — instead of{' '}
+                      <b>{retry.playedSan}</b>, find the move the engine wanted.
+                    </p>
+                    {!retry.solved && retry.wrongSan && (
+                      <div className="puzzle-feedback wrong">
+                        <b>{retry.wrongSan}</b> isn't it — try again.
+                      </div>
+                    )}
+                    {retry.solved && (
+                      <div className="puzzle-feedback right">
+                        ✓ Best move was <b>{retry.solutionSan}</b>.
+                        {retry.explanation && (
+                          <div className="note" style={{ marginTop: 5 }}>
+                            Why <b>{retry.playedSan}</b> failed: {retry.explanation}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {!retry.solved && (
+                      <button style={{ marginTop: 10 }} onClick={revealRetry}>
+                        Show answer
+                      </button>
+                    )}
+                  </div>
+                ) : explore ? (
+                  <div className="card under-board">
+                    <div className="explore-head">
+                      <strong>Your line</strong>
+                      <button onClick={resetExplore}>⟲ Back to game</button>
+                    </div>
+                    <div className="best">{explore.history.join(' ')}</div>
+                    {explore.loading ? (
+                      <p className="note">Analyzing your move…</p>
+                    ) : explore.analysis ? (
+                      <p className="note">
+                        Eval {Math.round(explore.analysis.winWhite)}% for White · best:{' '}
+                        {explore.analysis.lineSan.join(' ') || '—'}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="under-board-tip">
+                    {canRetry ? (
+                      <button onClick={startRetry}>🎯 Find the better move</button>
+                    ) : (
+                      <p className="note" style={{ margin: 0 }}>
+                        Drag a piece to try your own move and see the engine's reply.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                <div className="nav nav-mobile">{navButtons}</div>
+
+                <div className="graph-strip">
+                  <EvalGraph
+                    series={result.evalSeries}
+                    classes={result.moves.map((m) => m.classification)}
+                    current={current + 1}
+                    onSeek={(p) => goTo(p - 1)}
                   />
                 </div>
               </div>
-              <CapturedTray info={captured} side={flipped ? 'b' : 'w'} offset={19} />
-
-              {gameEnd && !explore ? (
-                <div className={`game-end ${gameEnd.kind}`}>
-                  {gameEnd.kind === 'mate'
-                    ? `♚ Checkmate — ${gameEnd.winner} wins`
-                    : gameEnd.kind === 'stalemate'
-                      ? '½ Stalemate — draw'
-                      : '½ Draw'}
-                </div>
-              ) : null}
-
-              {retryActive && retry ? (
-                <div className="card" style={{ marginTop: 8 }}>
-                  <div className="explore-head">
-                    <strong>Find the better move</strong>
-                    <button onClick={() => setRetry(null)}>⟲ Back to game</button>
-                  </div>
-                  <p className="note" style={{ marginTop: 0 }}>
-                    {retry.color === 'w' ? 'White' : 'Black'} to move — instead of{' '}
-                    <b>{retry.playedSan}</b>, find the move the engine wanted.
-                  </p>
-                  {!retry.solved && retry.wrongSan && (
-                    <div className="puzzle-feedback wrong">
-                      <b>{retry.wrongSan}</b> isn't it — try again.
-                    </div>
-                  )}
-                  {retry.solved && (
-                    <div className="puzzle-feedback right">
-                      ✓ Best move was <b>{retry.solutionSan}</b>.
-                      {retry.explanation && (
-                        <div className="note" style={{ marginTop: 5 }}>
-                          Why <b>{retry.playedSan}</b> failed: {retry.explanation}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {!retry.solved && (
-                    <button style={{ marginTop: 10 }} onClick={revealRetry}>
-                      Show answer
-                    </button>
-                  )}
-                </div>
-              ) : explore ? (
-                <div className="card" style={{ marginTop: 8 }}>
-                  <div className="explore-head">
-                    <strong>Your line</strong>
-                    <button onClick={resetExplore}>⟲ Back to game</button>
-                  </div>
-                  <div className="best">{explore.history.join(' ')}</div>
-                  {explore.loading ? (
-                    <p className="note">Analyzing your move…</p>
-                  ) : explore.analysis ? (
-                    <p className="note">
-                      Eval {Math.round(explore.analysis.winWhite)}% for White · best:{' '}
-                      {explore.analysis.lineSan.join(' ') || '—'}
-                    </p>
-                  ) : null}
-                </div>
-              ) : (
-                <div style={{ textAlign: 'center', marginTop: 6 }}>
-                  {canRetry ? (
-                    <button onClick={startRetry}>🎯 Find the better move</button>
-                  ) : (
-                    <p className="note" style={{ margin: 0 }}>
-                      Tip: drag a piece to try your own move and see the engine's reply.
-                    </p>
-                  )}
-                </div>
-              )}
-
-              <div className="nav">
-                <button onClick={() => goTo(-1)}>⏮</button>
-                <button onClick={() => step(-1)}>←</button>
-                <button onClick={() => step(1)}>→</button>
-                <button onClick={() => goTo(moveCount - 1)}>⏭</button>
-                <button onClick={() => setFlipped((f) => !f)} title="Flip board">⇅</button>
-              </div>
-              <div className="card" style={{ marginTop: 10 }}>
-                <h3>Evaluation</h3>
-                <EvalGraph
-                  series={result.evalSeries}
-                  classes={result.moves.map((m) => m.classification)}
-                  current={current + 1}
-                  onSeek={(p) => goTo(p - 1)}
-                />
-              </div>
             </div>
 
-            <div className="side-col">
-              <Summary moves={result.moves} openingName={result.openingName} eco={result.headers.ECO} />
+            <aside className="panel side-col">
+              <div className="panel-head">
+                <div style={{ minWidth: 0 }}>
+                  <div className="panel-title">Game Review</div>
+                  <div className="panel-sub">
+                    {result.headers.ECO && <b>{result.headers.ECO} </b>}
+                    {result.openingName ?? 'Opening'}
+                  </div>
+                </div>
+                <span className="panel-engine">Stockfish 16</span>
+              </div>
               <MoveDetail move={move} />
+              <Summary
+                moves={result.moves}
+                openingName={result.openingName}
+                eco={result.headers.ECO}
+                whiteName={whiteName}
+                blackName={blackName}
+              />
               <EngineLines
                 fen={displayFen}
                 analyze={analyze}
                 onPlay={(from, to) => tryMove(displayFen, from, to)}
               />
-              <div className="card">
-                <h3>Moves</h3>
+              <div className="section moves-section">
+                <div className="section-title">Moves</div>
                 <MoveList moves={result.moves} current={current} onSelect={goTo} />
               </div>
               <KeyMoments moves={result.moves} onSelect={goTo} />
-            </div>
+              <div className="panel-foot nav nav-desktop">{navButtons}</div>
+            </aside>
           </div>
         </>
       )}

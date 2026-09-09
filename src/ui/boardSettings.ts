@@ -18,7 +18,7 @@ export interface Theme {
 }
 
 export const THEMES: Record<ThemeKey, Theme> = {
-  green: { name: 'Green', light: '#eeeed2', dark: '#769656' },
+  green: { name: 'Green', light: '#ebecd0', dark: '#779556' },
   wood: { name: 'Wood', light: '#f0d9b5', dark: '#b58863' },
   blue: { name: 'Blue', light: '#dee3e6', dark: '#8ca2ad' },
   slate: { name: 'Slate', light: '#dcdcd4', dark: '#5f6b7a' },
