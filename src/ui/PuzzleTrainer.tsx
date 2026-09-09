@@ -4,7 +4,9 @@ import { Board } from './Board';
 import { Confetti } from './Confetti';
 import { sound } from './sound';
 import { pieceOn, type Puzzle, type PuzzleTheme } from '../review/puzzles';
-import { CLASS_LABEL } from '../review/classify';
+import { CLASS_LABEL, CLASS_COLOR } from '../review/classify';
+import { boardMap } from '../brain/attacks';
+import { detectAll } from '../brain/motifs';
 
 interface Props {
   puzzles: Puzzle[];
@@ -16,6 +18,36 @@ interface Props {
 }
 
 type Status = 'solving' | 'solved' | 'revealed';
+
+/** A wrong attempt, shown played-out on the board with a red arrow. */
+interface Wrong {
+  from: string;
+  to: string;
+  san: string;
+  fen: string;
+  /** Concrete consequence when we can see one ("hangs your knight on f3"). */
+  reason: string | null;
+}
+
+/** Why a wrong try is bad, when the position makes it obvious. */
+function wrongReason(fenAfter: string, mover: 'w' | 'b', san: string, playedSan: string): string | null {
+  if (san === playedSan) return 'That is the move you played in the game.';
+  try {
+    const c = new Chess(fenAfter);
+    if (c.isCheckmate()) return null;
+    const opp: 'w' | 'b' = mover === 'w' ? 'b' : 'w';
+    const hits = detectAll(boardMap(c), opp);
+    const hang = hits.find((h) => h.motif === 'hanging' && (h.value ?? 0) >= 1);
+    if (hang) return `It leaves your ${hang.detail ?? 'piece'} on ${hang.square} hanging.`;
+    const fork = hits.find((h) => h.motif === 'fork');
+    if (fork) return `It walks into a fork from ${fork.square}.`;
+    const mate = c.moves().some((m) => m.endsWith('#'));
+    if (mate) return 'It allows checkmate.';
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
 
 const THEME_HINT: Record<PuzzleTheme, string> = {
   Checkmate: 'There is a forced checkmate here. Hunt the king.',
@@ -49,7 +81,8 @@ export function PuzzleTrainer({ puzzles, onExit, onResult, backLabel = 'Back to 
   const [idx, setIdx] = useState(0);
   const [status, setStatus] = useState<Status>('solving');
   const [attempts, setAttempts] = useState(0);
-  const [wrongSan, setWrongSan] = useState<string | null>(null);
+  const [wrong, setWrong] = useState<Wrong | null>(null);
+  const [lastWrongSan, setLastWrongSan] = useState<string | null>(null);
   const [hintLevel, setHintLevel] = useState(0); // 0 none · 1 theme · 2 piece
   const [lineStep, setLineStep] = useState(0); // moves of the line applied on the board
   const [streak, setStreak] = useState(0);
@@ -82,11 +115,19 @@ export function PuzzleTrainer({ puzzles, onExit, onResult, backLabel = 'Back to 
   useEffect(() => {
     setStatus('solving');
     setAttempts(0);
-    setWrongSan(null);
+    setWrong(null);
+    setLastWrongSan(null);
     setHintLevel(0);
     setLineStep(0);
     setCelebrate(false);
   }, [idx]);
+
+  // A wrong try stays on the board for a moment, then snaps back to retry.
+  useEffect(() => {
+    if (!wrong) return;
+    const t = setTimeout(() => setWrong(null), 1800);
+    return () => clearTimeout(t);
+  }, [wrong]);
 
   // The solution + engine line, as SAN, solution first.
   const line = useMemo(() => {
@@ -152,9 +193,11 @@ export function PuzzleTrainer({ puzzles, onExit, onResult, backLabel = 'Back to 
       report(clean);
       return true;
     }
-    setWrongSan(mv.san);
+    sound.forSan(mv.san);
+    setWrong({ from: mv.from, to: mv.to, san: mv.san, fen: c.fen(), reason: wrongReason(c.fen(), puzzle.color, mv.san, puzzle.playedSan) });
+    setLastWrongSan(mv.san);
     setAttempts((a) => a + 1);
-    return false;
+    return true;
   };
 
   const reveal = () => {
@@ -192,12 +235,15 @@ export function PuzzleTrainer({ puzzles, onExit, onResult, backLabel = 'Back to 
           <div className="board-col" ref={boardCol}>
             <div className="board-wrap" style={{ position: 'relative' }}>
               <Board
-                fen={shownFen}
-                playedFrom={status === 'solving' && hintLevel >= 2 ? fromSq : lastMove?.from}
-                playedTo={status === 'solving' ? undefined : lastMove?.to}
+                fen={wrong ? wrong.fen : shownFen}
+                playedFrom={wrong ? wrong.from : status === 'solving' && hintLevel >= 2 ? fromSq : lastMove?.from}
+                playedTo={wrong ? wrong.to : status === 'solving' ? undefined : lastMove?.to}
+                playedClass={wrong ? 'blunder' : undefined}
+                arrows={wrong ? [[wrong.from, wrong.to, CLASS_COLOR.blunder]] : undefined}
+                badge={wrong ? { square: wrong.to, cls: 'blunder' } : null}
                 boardWidth={boardWidth}
                 boardOrientation={puzzle.color === 'w' ? 'white' : 'black'}
-                onPieceDrop={status === 'solving' ? play : undefined}
+                onPieceDrop={status === 'solving' && !wrong ? play : undefined}
                 userColor={puzzle.color}
               />
               {celebrate && <Confetti onDone={() => setCelebrate(false)} />}
@@ -234,13 +280,17 @@ export function PuzzleTrainer({ puzzles, onExit, onResult, backLabel = 'Back to 
                   Move the <b>{pieceName}</b> — it is highlighted on the board.
                 </div>
               )}
-              {wrongSan && (
+              {(wrong || lastWrongSan) && (
                 <div className="puzzle-feedback wrong">
-                  <b>{wrongSan}</b> isn't it. {hintLevel === 0 ? 'Stuck? Take a hint.' : 'Try again.'}
+                  <b>✗ {wrong?.san ?? lastWrongSan} — wrong move.</b>{' '}
+                  {wrong?.reason ?? (hintLevel === 0 ? 'Stuck? Take a hint.' : 'Try again.')}
                 </div>
               )}
 
               <div className="puzzle-actions">
+                {wrong && (
+                  <button className="primary" onClick={() => setWrong(null)}>↩ Try again</button>
+                )}
                 <button onClick={hint}>
                   {hintLevel === 0 ? '💡 Hint' : hintLevel === 1 ? '💡 Another hint' : 'Show solution'}
                 </button>

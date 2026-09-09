@@ -39,6 +39,8 @@ interface Props {
   onPremove?: (from: string, to: string) => void;
   /** Called on right-click — used to cancel a queued premove. */
   onCancelPremove?: () => void;
+  /** Extra arrows to draw: [from, to, cssColor]. */
+  arrows?: [string, string, string][];
 }
 
 export function Board({
@@ -56,6 +58,7 @@ export function Board({
   premove,
   onPremove,
   onCancelPremove,
+  arrows: extraArrows,
 }: Props) {
   const [selected, setSelected] = useState<string | null>(null);
   const [pendingPromo, setPendingPromo] = useState<{ from: string; to: string; color: 'w' | 'b' } | null>(null);
@@ -66,6 +69,7 @@ export function Board({
   if (bestUci && bestUci.length >= 4) {
     arrows.push([bestUci.slice(0, 2), bestUci.slice(2, 4), CLASS_COLOR.best]);
   }
+  if (extraArrows) arrows.push(...extraArrows);
 
   const interactive = Boolean(onPieceDrop);
   const turn: 'w' | 'b' = fen.split(/\s+/)[1] === 'b' ? 'b' : 'w';
