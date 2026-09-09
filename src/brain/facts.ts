@@ -28,6 +28,11 @@ export interface Facts {
   bestIsMate: boolean;
   playedIsMate: boolean; // the played move still forces mate for the mover
   mateIn: number | null;
+  /** The played move lets the OPPONENT force mate (and the best move didn't). */
+  allowsMate: boolean;
+  allowsMateIn: number | null;
+  /** The played move ends the game in a draw (stalemate, insufficient material, 50-move). */
+  endsInDraw: boolean;
 
   /** Material change for the mover after the refutation PV plays out. Negative = mover loses material. */
   materialSwing: number;
@@ -87,13 +92,44 @@ export function playPV(fen: string, pvUci: string[]): Chess {
 }
 
 /**
- * Net material swing for `me` after the PV plays out from `fenAfter`.
- * Positive = me gains, negative = me loses.
+ * Play a PV, then back up to a QUIET position: while the side to move can
+ * recapture on the square the last move landed on, undo that last move. A PV
+ * cut off mid-exchange (depth limit, desync) would otherwise report a swing
+ * that is off by a whole piece.
+ */
+export function playPVQuiet(fen: string, pvUci: string[]): Chess {
+  const g = playPV(fen, pvUci);
+  for (;;) {
+    const hist = g.history({ verbose: true });
+    const last = hist[hist.length - 1];
+    if (!last) break;
+    const recapture = g
+      .moves({ verbose: true })
+      .some((m) => m.to === last.to && (m.flags.includes('c') || m.flags.includes('e')));
+    if (!recapture) break;
+    g.undo();
+  }
+  return g;
+}
+
+/** True if the position is a finished draw (stalemate, insufficient material, 50-move). */
+export function isDrawnPosition(fen: string): boolean {
+  try {
+    const c = new Chess(fen);
+    return c.isStalemate() || c.isInsufficientMaterial() || c.isDraw();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Net material swing for `me` after the PV plays out from `fenAfter` and the
+ * position is quiet. Positive = me gains, negative = me loses.
  */
 export function materialSwing(fenAfter: string, pv: string[], me: Color): number {
   const them: Color = me === 'w' ? 'b' : 'w';
   const a = new Chess(fenAfter);
-  const b = playPV(fenAfter, pv);
+  const b = playPVQuiet(fenAfter, pv);
   return (
     material(b, me) - material(b, them) - (material(a, me) - material(a, them))
   );
@@ -129,6 +165,12 @@ export function extractFacts(input: FactInput): Facts {
   const playedMateForMover =
     afterLine.mate !== null && afterLine.mate * moverSign > 0;
   const mateIn = bestMateForMover ? Math.abs(bestLine.mate as number) : null;
+  // Mate against the mover after the played move, unless it was coming anyway.
+  const bestLosesToMate = bestLine.mate !== null && bestLine.mate * moverSign < 0;
+  const playedLosesToMate = afterLine.mate !== null && afterLine.mate * moverSign < 0;
+  const allowsMate = playedLosesToMate && !bestLosesToMate;
+  const allowsMateIn = allowsMate ? Math.abs(afterLine.mate as number) : null;
+  const endsInDraw = isDrawnPosition(fenAfter);
 
   // Material swing after the refutation line.
   const swing = refutationUci
@@ -179,6 +221,9 @@ export function extractFacts(input: FactInput): Facts {
     bestIsMate: bestMateForMover,
     playedIsMate: playedMateForMover,
     mateIn,
+    allowsMate,
+    allowsMateIn,
+    endsInDraw,
     materialSwing: swing,
     refutationIsCapture,
     missedGain,

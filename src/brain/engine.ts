@@ -7,6 +7,8 @@ type Comparator = { lt?: number; lte?: number; gt?: number; gte?: number; eq?: n
 interface When {
   bestIsMate?: boolean;
   playedIsMate?: boolean;
+  allowsMate?: boolean;
+  endsInDraw?: boolean;
   refutationIsCapture?: boolean;
   opponentMotif?: string;
   materialSwing?: Comparator;
@@ -62,6 +64,8 @@ export function explain(facts: Facts, fenBefore: string, limit = 2): Explanation
 function matches(when: When, f: Facts): boolean {
   if (when.bestIsMate !== undefined && when.bestIsMate !== f.bestIsMate) return false;
   if (when.playedIsMate !== undefined && when.playedIsMate !== f.playedIsMate) return false;
+  if (when.allowsMate !== undefined && when.allowsMate !== f.allowsMate) return false;
+  if (when.endsInDraw !== undefined && when.endsInDraw !== f.endsInDraw) return false;
   if (
     when.refutationIsCapture !== undefined &&
     when.refutationIsCapture !== f.refutationIsCapture

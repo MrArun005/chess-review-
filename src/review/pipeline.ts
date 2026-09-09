@@ -129,7 +129,7 @@ export async function reviewGame(
     analyses[index] = a;
     // Never cache a degenerate/timed-out result — that would make the wrong
     // answer permanent.
-    if (a.best.pv.length > 0) await putCached(a, multipv);
+    if (a.best.pv.length > 0) await putCached(a);
     return a;
   };
 
@@ -139,9 +139,13 @@ export async function reviewGame(
       if (opts.signal?.aborted) throw new DOMException('aborted', 'AbortError');
       const terminal = terminalWin[i];
       if (terminal !== null) {
-        // Checkmate/stalemate/draw — set the eval from the rules, skip the engine.
+        // Checkmate/stalemate/draw — set the eval from the rules, skip the
+        // engine, and synthesize the analysis so the final ply can still be
+        // classified and explained (a stalemate-while-winning must not end up
+        // as a red ?? with an empty panel).
         shallowWin[i] = terminal;
         evalSeries[i] = terminal;
+        analyses[i] = terminalAnalysis(positions[i], terminal);
       } else {
         const a = await analyzePos(i, shallowDepth, 1);
         shallowWin[i] = winPctWhite(a.best);
@@ -171,10 +175,17 @@ export async function reviewGame(
         if (i > 0) deepIndices.add(i - 1);
         return;
       }
-      // Best moves only need the deep pass if they could be Brilliant or Great,
-      // which requires a tactical move (a capture or a check). Deep-analyzing
-      // every quiet best move roughly doubled the second pass for no payoff.
-      const tacticalBest = prelim[i].playedBest && /[x+#]/.test(ply.san);
+      // Best moves only need the deep pass if they could be Brilliant or Great.
+      // Deep-analyzing every quiet best move roughly doubled the second pass,
+      // so admit the ones with a tactical context: the move itself is a
+      // capture/check, the opponent's previous move was, or the eval swung
+      // sharply on the previous ply (a threat that had to be met — exactly
+      // where a quiet only-move earns a Great).
+      const sharp =
+        /[x+#]/.test(ply.san) ||
+        (i > 0 && /[x+#]/.test(plies[i - 1].san)) ||
+        (i > 0 && Math.abs(shallowWin[i] - shallowWin[i - 1]) >= 10);
+      const tacticalBest = prelim[i].playedBest && sharp;
       if (tacticalBest) {
         deepIndices.add(i);
         deepIndices.add(i + 1);
@@ -232,6 +243,19 @@ export function terminalWinWhite(fen: string): number | null {
     /* not a loadable position */
   }
   return null;
+}
+
+/**
+ * A stand-in Analysis for a finished position. Stockfish returns nothing for a
+ * mated/stalemated position, so we build the line from the rules: a checkmate
+ * is "mate 0" against the side to move (sign carries who won), a draw is 0 cp.
+ */
+export function terminalAnalysis(fen: string, winWhite: number): Analysis {
+  const line: PvLine =
+    winWhite === 50
+      ? { multipv: 1, depth: 0, cp: 0, mate: null, pv: [] }
+      : { multipv: 1, depth: 0, cp: null, mate: winWhite === 100 ? 1 : -1, pv: [] };
+  return { fen, depth: 0, lines: [line], best: line };
 }
 
 function parseGame(pgn: string): {
@@ -323,6 +347,8 @@ function buildReviewedMove(
   const base = classify(drop);
   const classification = finalClass({
     base,
+    plyIndex: i,
+    drop,
     ply,
     before,
     after,
@@ -374,6 +400,8 @@ function buildReviewedMove(
 
 interface FinalClassInput {
   base: MoveClass;
+  plyIndex: number;
+  drop: number;
   ply: PlyMeta;
   before?: PvLine;
   after?: PvLine;
@@ -383,18 +411,28 @@ interface FinalClassInput {
   winMoverAfter: number;
 }
 
+/** Plies (half-moves) within which a known opening position may be labelled Book. */
+const BOOK_MAX_PLY = 30;
+
 /** Layer the special badges on top of the base classification. */
 function finalClass(x: FinalClassInput): MoveClass {
-  const { base, ply, before, after, beforeAnalysis } = x;
+  const { ply, before, after, beforeAnalysis } = x;
+  let base = x.base;
 
   // Forced: only one legal move. Checked from the position, no engine needed.
   if (ply.legalCount === 1) return 'forced';
 
-  // Book: the resulting position is still a known opening position.
-  if (isBookPosition(ply.fenAfter)) return 'book';
-
   const playedBest = (before?.pv[0] ?? null) === ply.uci;
   const moverSign = ply.color === 'w' ? 1 : -1;
+
+  // Best is reserved for the engine's own move. A move that merely didn't
+  // lose win% (drop <= 0 at this depth) is Excellent.
+  if (base === 'best' && !playedBest) base = 'excellent';
+
+  // Book: the resulting position is a known opening position AND the move
+  // wasn't a mistake — the book contains plenty of lines that are known
+  // precisely because they are bad, and it must not hide a blunder.
+  if (x.plyIndex < BOOK_MAX_PLY && x.drop < 5 && isBookPosition(ply.fenAfter)) return 'book';
 
   // Miss: a mate (or huge swing) was available and not taken. Stacks on bad moves.
   const bestIsMate = before?.mate != null && before.mate * moverSign > 0;

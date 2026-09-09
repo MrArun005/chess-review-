@@ -96,10 +96,10 @@ on mobile Safari — so single-threaded is the reliable choice everywhere, and i
 caches cleanly for offline. Depth is capped lower on small screens to keep
 mobile responsive.
 
-> The repo still ships the cross-origin isolation headers (`vercel.json`,
-> `netlify.toml`, `vite.config.ts`) — harmless, and they leave the door open to
-> re-enable the multi-threaded build later if the service-worker interaction is
-> solved.
+> The cross-origin isolation headers (COOP/COEP) were removed from
+> `vercel.json`, `netlify.toml` and `vite.config.ts`: the single-threaded build
+> doesn't need them, and they break embedding third-party resources. Re-add
+> them if you switch to the multi-threaded engine.
 
 ---
 
@@ -109,7 +109,11 @@ mobile responsive.
 hand-labelled positions and reports:
 
 - **Coverage** — % of positions where a tactical motif fired
-- **Correct-motif rate** — % where the *expected* motif was detected
+- **Recall** — % where the *expected* motif was detected
+- **Precision** — of every distinct motif fired, the share that was labelled
+  (expected or `alsoAllowed`). Recall alone rewards a detector that fires
+  everything; precision is what keeps the explanations honest.
+- **F1** — the single number to quote. CI fails below 80% recall or 60% precision.
 
 The detectors are pure functions over the board, so this runs in Node with no
 engine. The labelled set ships small and is meant to grow toward ~200

@@ -3,7 +3,10 @@
     "id": "misses-mate",
     "priority": 120,
     "category": "mate",
-    "when": { "bestIsMate": true, "playedIsMate": false },
+    "when": {
+      "bestIsMate": true,
+      "playedIsMate": false
+    },
     "say": [
       "{{best}} was mate in {{mateIn}}.",
       "There was a forced mate — {{best}} mates in {{mateIn}}.",
@@ -11,10 +14,44 @@
     ]
   },
   {
-    "id": "allows-mate",
-    "priority": 115,
+    "id": "stalemates",
+    "priority": 119,
     "category": "mate",
-    "when": { "opponentMotif": "backrank", "materialSwing": { "lte": -3 } },
+    "when": {
+      "endsInDraw": true,
+      "drop": {
+        "gte": 10
+      }
+    },
+    "say": [
+      "This ends the game in a draw — stalemate. {{best}} kept the win going.",
+      "Stalemate! The game is drawn on the spot; {{best}} was still winning."
+    ]
+  },
+  {
+    "id": "allows-mate",
+    "priority": 118,
+    "category": "mate",
+    "when": {
+      "allowsMate": true,
+      "bestIsMate": false
+    },
+    "say": [
+      "This allows mate in {{allowsMateIn}} — {{refutation}} starts it.",
+      "After {{refutation}} there is a forced mate in {{allowsMateIn}}. {{best}} kept the king safe.",
+      "You walked into mate in {{allowsMateIn}}: {{refutation}}!"
+    ]
+  },
+  {
+    "id": "backrank-collapse",
+    "priority": 112,
+    "category": "mate",
+    "when": {
+      "opponentMotif": "backrank",
+      "materialSwing": {
+        "lte": -3
+      }
+    },
     "say": [
       "This walks into a back-rank mating net — {{refutation}} is crushing.",
       "The back rank collapses after {{refutation}}."
@@ -24,7 +61,13 @@
     "id": "hangs-piece",
     "priority": 100,
     "category": "tactic",
-    "when": { "opponentMotif": "hanging", "materialSwing": { "lte": -2 }, "refutationIsCapture": true },
+    "when": {
+      "opponentMotif": "hanging",
+      "materialSwing": {
+        "lte": -2
+      },
+      "refutationIsCapture": true
+    },
     "say": [
       "Your {{piece}} on {{square}} was undefended — {{refutation}} just takes it.",
       "{{refutation}} wins the {{piece}}; nothing was covering {{square}}.",
@@ -35,7 +78,12 @@
     "id": "allows-fork",
     "priority": 95,
     "category": "tactic",
-    "when": { "opponentMotif": "fork", "materialSwing": { "lte": -1 } },
+    "when": {
+      "opponentMotif": "fork",
+      "materialSwing": {
+        "lte": -1
+      }
+    },
     "say": [
       "{{refutation}} forks {{targets}}.",
       "This runs into {{refutation}}, forking {{targets}}.",
@@ -46,7 +94,12 @@
     "id": "allows-pin",
     "priority": 90,
     "category": "tactic",
-    "when": { "opponentMotif": "pin", "materialSwing": { "lte": -1 } },
+    "when": {
+      "opponentMotif": "pin",
+      "materialSwing": {
+        "lte": -1
+      }
+    },
     "say": [
       "{{refutation}} pins and wins — {{motifDetail}}.",
       "This allows {{refutation}}: {{motifDetail}}."
@@ -56,7 +109,12 @@
     "id": "allows-skewer",
     "priority": 90,
     "category": "tactic",
-    "when": { "opponentMotif": "skewer", "materialSwing": { "lte": -1 } },
+    "when": {
+      "opponentMotif": "skewer",
+      "materialSwing": {
+        "lte": -1
+      }
+    },
     "say": [
       "{{refutation}} skewers you — {{motifDetail}}.",
       "This loses to {{refutation}}: {{motifDetail}}."
@@ -66,7 +124,9 @@
     "id": "allows-backrank",
     "priority": 88,
     "category": "tactic",
-    "when": { "opponentMotif": "backrank" },
+    "when": {
+      "opponentMotif": "backrank"
+    },
     "say": [
       "This leaves the back rank loose — {{refutation}} is strong.",
       "Careful with the back rank; {{refutation}} exploits it."
@@ -76,7 +136,12 @@
     "id": "gets-trapped",
     "priority": 85,
     "category": "tactic",
-    "when": { "opponentMotif": "trapped", "materialSwing": { "lte": -1 } },
+    "when": {
+      "opponentMotif": "trapped",
+      "materialSwing": {
+        "lte": -1
+      }
+    },
     "say": [
       "The {{piece}} gets trapped — {{motifDetail}} after {{refutation}}.",
       "{{refutation}} traps the piece: {{motifDetail}}."
@@ -86,7 +151,11 @@
     "id": "missed-material",
     "priority": 70,
     "category": "tactic",
-    "when": { "missedGain": { "gte": 1 } },
+    "when": {
+      "missedGain": {
+        "gte": 1
+      }
+    },
     "say": [
       "You could have won {{missedPiece}} — {{best}} wins material.",
       "{{best}} was winning {{missedPiece}} here.",
@@ -97,7 +166,11 @@
     "id": "drops-material-quiet",
     "priority": 60,
     "category": "tactic",
-    "when": { "materialSwing": { "lte": -2 } },
+    "when": {
+      "materialSwing": {
+        "lte": -2
+      }
+    },
     "say": [
       "This drops material — {{best}} held everything together.",
       "You come out down material here; {{best}} was safer."
@@ -107,7 +180,11 @@
     "id": "better-was-available",
     "priority": 30,
     "category": "positional",
-    "when": { "drop": { "gte": 5 } },
+    "when": {
+      "drop": {
+        "gte": 5
+      }
+    },
     "say": [
       "{{best}} was stronger — {{topFeatureDelta}}.",
       "Prefer {{best}} here: {{topFeatureDelta}}."

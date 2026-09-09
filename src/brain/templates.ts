@@ -33,6 +33,7 @@ export function render(template: string, facts: Facts): string {
     piece: facts.hangingPiece?.piece ?? facts.pieceMoved,
     square: facts.hangingPiece?.square ?? facts.toSquare,
     mateIn: facts.mateIn != null ? String(facts.mateIn) : '',
+    allowsMateIn: facts.allowsMateIn != null ? String(facts.allowsMateIn) : '',
     targets: humanTargets(facts.targets),
     motifDetail: top?.detail ?? '',
     topFeatureDelta: facts.topFeatureDelta,
