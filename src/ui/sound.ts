@@ -1,19 +1,17 @@
+import { KNOCKS, renderKnock, type KnockName } from './knock';
 // Move sounds, synthesized with the Web Audio API — no audio files (nothing to
 // bundle, CSP-safe, offline) and legally clean (we do NOT ship chess.com's
 // proprietary samples).
 //
-// The trick to a convincing wooden "tak" (vs. a cheap game beep) is to avoid
-// pure tones. A real piece hitting a board is an impulse exciting a few damped
-// resonant modes of the wood, plus a bright contact click — so we drive short
-// resonant BANDPASS filters with a noise burst and let them decay fast. No
-// sine oscillators, no melody.
+// The knocks themselves are modal synthesis (see knock.ts): an impulse into
+// a few damped, inharmonic resonances with a slight pitch sag, plus a 2 ms
+// contact click — rendered once to PCM and played back like a sample.
 //
 // Browsers block audio until a user gesture; we lazily create/resume the
 // AudioContext on first play, which in practice follows a click or keypress.
 
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
-let noiseBuf: AudioBuffer | null = null;
 let muted = readMuted();
 
 function readMuted(): boolean {
@@ -91,158 +89,54 @@ function playSample(name: SampleName): boolean {
   return true;
 }
 
-/** One reusable short white-noise buffer that excites the resonators. */
-function noise(c: AudioContext): AudioBuffer {
-  if (noiseBuf) return noiseBuf;
-  const len = Math.floor(c.sampleRate * 0.12);
-  const buf = c.createBuffer(1, len, c.sampleRate);
-  const data = buf.getChannelData(0);
-  for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
-  noiseBuf = buf;
-  return buf;
+// --- synthesized knocks ----------------------------------------------------
+// Each event's knock is rendered once (per sample rate) into an AudioBuffer
+// and then simply played, with a few percent of random pitch variation so a
+// run of moves doesn't sound machine-gunned.
+
+const rendered = new Map<KnockName, AudioBuffer>();
+
+function knockBuffer(c: AudioContext, name: KnockName): AudioBuffer {
+  let b = rendered.get(name);
+  if (b && b.sampleRate === c.sampleRate) return b;
+  const pcm = renderKnock(KNOCKS[name], c.sampleRate);
+  b = c.createBuffer(1, pcm.length, c.sampleRate);
+  b.getChannelData(0).set(pcm);
+  rendered.set(name, b);
+  return b;
 }
 
-/** A resonant mode of the "wood": center frequency, sharpness, loudness. */
-interface Mode {
-  f: number;
-  q: number;
-  g: number;
-}
-
-interface Knock {
-  /** Resonant modes (a couple gives a woody character). */
-  modes: Mode[];
-  /** Overall decay of the body (s). */
-  decay: number;
-  /** Loudness of the bright contact click. */
-  tick: number;
-  /** Highpass cutoff for the click (Hz). */
-  hp: number;
-  /** Master level for this knock. */
-  gain?: number;
-  /** Delay from now (s), for double knocks. */
-  at?: number;
-}
-
-function knock({ modes, decay, tick, hp, gain = 1, at = 0 }: Knock): void {
+function tap(name: KnockName, { gain = 1, at = 0, vary = 0.04 }: { gain?: number; at?: number; vary?: number } = {}): void {
   const c = audioCtx();
   if (!c || !master || muted) return;
-  const out = master;
-  const t = c.currentTime + at;
-
-  const bus = c.createGain();
-  bus.gain.value = gain;
-  bus.connect(out);
-
-  // Damped resonant body: noise through short, sharp bandpasses.
-  for (const m of modes) {
-    const src = c.createBufferSource();
-    src.buffer = noise(c);
-    const bp = c.createBiquadFilter();
-    bp.type = 'bandpass';
-    bp.frequency.value = m.f;
-    bp.Q.value = m.q;
-    const g = c.createGain();
-    g.gain.setValueAtTime(m.g, t);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + decay);
-    src.connect(bp);
-    bp.connect(g);
-    g.connect(bus);
-    src.start(t);
-    src.stop(t + decay + 0.02);
-  }
-
-  // Bright contact click — a few ms of highpassed noise.
-  const s2 = c.createBufferSource();
-  s2.buffer = noise(c);
-  const hpf = c.createBiquadFilter();
-  hpf.type = 'highpass';
-  hpf.frequency.value = hp;
-  const g2 = c.createGain();
-  g2.gain.setValueAtTime(tick, t);
-  g2.gain.exponentialRampToValueAtTime(0.0001, t + 0.014);
-  s2.connect(hpf);
-  hpf.connect(g2);
-  g2.connect(bus);
-  s2.start(t);
-  s2.stop(t + 0.03);
+  const src = c.createBufferSource();
+  src.buffer = knockBuffer(c, name);
+  src.playbackRate.value = 1 + (Math.random() * 2 - 1) * vary;
+  const g = c.createGain();
+  g.gain.value = gain;
+  src.connect(g);
+  g.connect(master);
+  src.start(c.currentTime + at);
 }
-
-// The "Deep tok" profile chosen in the sound lab: low, warm, almost no click.
-const DEEP_TOK: Knock = {
-  modes: [
-    { f: 1100, q: 7, g: 0.42 },
-    { f: 450, q: 5, g: 0.55 },
-    { f: 200, q: 3, g: 0.4 },
-  ],
-  decay: 0.07,
-  tick: 0.05,
-  hp: 1800,
-  gain: 1,
-};
-
-// --- synthesized fallbacks -----------------------------------------------
 
 function synthMove(): void {
-  knock(DEEP_TOK);
+  tap('move');
 }
 function synthCapture(): void {
-  // Heavier deep tok — lower, a touch more contact.
-  knock({
-    modes: [
-      { f: 900, q: 6, g: 0.45 },
-      { f: 380, q: 5, g: 0.6 },
-      { f: 170, q: 3, g: 0.45 },
-    ],
-    decay: 0.085,
-    tick: 0.09,
-    hp: 1600,
-    gain: 1,
-  });
+  tap('capture');
 }
 function synthCheck(): void {
-  // A single firm, brighter rap — more assertive than the plain tok.
-  knock({
-    modes: [
-      { f: 1800, q: 9, g: 0.45 },
-      { f: 800, q: 7, g: 0.5 },
-      { f: 360, q: 4, g: 0.35 },
-    ],
-    decay: 0.055,
-    tick: 0.16,
-    hp: 3000,
-    gain: 1,
-  });
+  tap('check');
 }
 function synthCastle(): void {
-  knock(DEEP_TOK);
-  knock({
-    modes: [
-      { f: 1000, q: 7, g: 0.4 },
-      { f: 410, q: 5, g: 0.55 },
-      { f: 185, q: 3, g: 0.4 },
-    ],
-    decay: 0.07,
-    tick: 0.05,
-    hp: 1800,
-    gain: 1,
-    at: 0.12,
-  });
+  // King, then rook — two taps a beat apart.
+  tap('move', { gain: 0.9 });
+  tap('move', { gain: 1, at: 0.13 });
 }
 function synthPromote(): void {
-  knock(DEEP_TOK);
-  knock({
-    modes: [
-      { f: 1400, q: 7, g: 0.38 },
-      { f: 600, q: 6, g: 0.5 },
-      { f: 260, q: 3, g: 0.36 },
-    ],
-    decay: 0.06,
-    tick: 0.1,
-    hp: 2400,
-    gain: 0.95,
-    at: 0.12,
-  });
+  // Pawn lands, then the new piece is set down.
+  tap('move', { gain: 0.85 });
+  tap('promoteTop', { at: 0.14 });
 }
 
 export const sound = {
