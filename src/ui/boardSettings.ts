@@ -7,7 +7,9 @@ import { useSyncExternalStore } from 'react';
  * and the puzzle trainer all pick up a change at once.
  */
 
-export type ThemeKey = 'green' | 'wood' | 'blue' | 'slate' | 'venom' | 'asgard';
+export type ThemeKey =
+  | 'green' | 'wood' | 'blue' | 'slate' | 'venom' | 'asgard'
+  | 'ironman' | 'hulk' | 'captain' | 'panther' | 'ice' | 'coral' | 'purple' | 'tournament';
 
 export interface Theme {
   name: string;
@@ -24,6 +26,18 @@ export const THEMES: Record<ThemeKey, Theme> = {
   venom: { name: 'Venom', light: '#d8cfd6', dark: '#7d1f2b' },
   // Thor / Asgard — Asgardian gold + royal blue.
   asgard: { name: 'Asgard', light: '#e8cf78', dark: '#274a86' },
+  // Iron Man — hot-rod red + gold.
+  ironman: { name: 'Iron Man', light: '#e9c86b', dark: '#9b1c22' },
+  // Hulk — gamma green + purple shorts.
+  hulk: { name: 'Hulk', light: '#c9e39a', dark: '#5a3c7a' },
+  // Captain America — shield blue + a red-tinted light square.
+  captain: { name: 'Captain', light: '#e6d8d8', dark: '#2f4f9a' },
+  // Black Panther — vibranium purple on charcoal (kept mid-tone for piece contrast).
+  panther: { name: 'Panther', light: '#c9c3d8', dark: '#4a3d6b' },
+  ice: { name: 'Ice', light: '#eef5fb', dark: '#7fa7c4' },
+  coral: { name: 'Coral', light: '#fbe9dd', dark: '#d97b66' },
+  purple: { name: 'Purple', light: '#e9e1f2', dark: '#8c6bb1' },
+  tournament: { name: 'Tournament', light: '#f0dcb4', dark: '#a0764a' },
 };
 
 export interface BoardSettings {

@@ -1330,3 +1330,41 @@ button.offline-ready {
   color: var(--faint);
   font-size: 12.5px;
 }
+
+/* ---------- puzzle trainer: teaching UI ---------- */
+.puzzle-head-right { display: flex; align-items: center; gap: 12px; }
+.streak {
+  font-weight: 800; font-size: 13px; padding: 4px 10px; border-radius: 999px;
+  background: color-mix(in srgb, #f7c631 18%, var(--surface)); border: 1px solid color-mix(in srgb, #f7c631 45%, var(--line));
+}
+.puzzle-context { margin: 0 0 8px; font-size: 14px; line-height: 1.5; color: var(--text); }
+.puzzle-cls { color: #ffa459; font-weight: 600; }
+.puzzle-ask { margin: 0; font-size: 14px; color: var(--muted); }
+.puzzle-hint {
+  margin-top: 10px; padding: 9px 11px; border-radius: var(--radius-sm); font-size: 13.5px; line-height: 1.45;
+  background: color-mix(in srgb, #f7c631 12%, var(--surface)); border-left: 3px solid #f7c631;
+}
+.puzzle-theme {
+  display: inline-block; margin-right: 8px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--accent-ink); background: #f7c631; border-radius: 999px; padding: 2px 8px;
+}
+.puzzle-why.good { border-left: 3px solid var(--accent); }
+.puzzle-solution { margin: 0; font-size: 15px; line-height: 1.5; }
+.puzzle-line { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.puzzle-line .san {
+  font-size: 13px; padding: 3px 8px; border-radius: 6px; background: var(--bg-2); color: var(--faint);
+  border: 1px solid var(--line-soft); font-variant-numeric: tabular-nums;
+}
+.puzzle-line .san.played { color: var(--text); }
+.puzzle-line .san.current { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 18%, var(--surface)); font-weight: 700; }
+
+/* confetti */
+.confetti { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 20; }
+.confetti span {
+  position: absolute; top: -10px; border-radius: 2px; opacity: 0;
+  animation-name: confetti-fall; animation-timing-function: cubic-bezier(.2,.7,.3,1); animation-fill-mode: forwards;
+}
+@keyframes confetti-fall {
+  0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(110%) rotate(540deg); opacity: 0; }
+}
