@@ -8,7 +8,7 @@ import { useSyncExternalStore } from 'react';
  */
 
 export type ThemeKey =
-  | 'green' | 'wood' | 'blue' | 'slate' | 'venom' | 'asgard'
+  | 'green' | 'wood' | 'blue' | 'slate' | 'venom' | 'spiderman' | 'asgard'
   | 'ironman' | 'hulk' | 'captain' | 'panther' | 'ice' | 'coral' | 'purple' | 'tournament';
 
 export interface Theme {
@@ -24,6 +24,7 @@ export const THEMES: Record<ThemeKey, Theme> = {
   slate: { name: 'Slate', light: '#dcdcd4', dark: '#5f6b7a' },
   // Venom / Spider-Man — web silver + spider red.
   venom: { name: 'Venom', light: '#d8cfd6', dark: '#7d1f2b' },
+  spiderman: { name: 'Spider-Man', light: '#dfe6f7', dark: '#c1272d' },
   // Thor / Asgard — Asgardian gold + royal blue.
   asgard: { name: 'Asgard', light: '#e8cf78', dark: '#274a86' },
   // Iron Man — hot-rod red + gold.
