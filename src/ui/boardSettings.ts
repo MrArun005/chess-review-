@@ -37,7 +37,7 @@ export const THEMES: Record<ThemeKey, Theme> = {
   ice: { name: 'Ice', light: '#eef5fb', dark: '#7fa7c4' },
   coral: { name: 'Coral', light: '#fbe9dd', dark: '#d97b66' },
   purple: { name: 'Purple', light: '#e9e1f2', dark: '#8c6bb1' },
-  tournament: { name: 'Tournament', light: '#f0dcb4', dark: '#a0764a' },
+  tournament: { name: 'Classic', light: '#f0dcb4', dark: '#a0764a' },
 };
 
 export interface BoardSettings {

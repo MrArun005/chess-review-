@@ -9,11 +9,11 @@ export function BoardSettingsMenu() {
 
   useEffect(() => {
     if (!open) return;
-    const onDown = (e: MouseEvent) => {
+    const onDown = (e: PointerEvent) => {
       if (wrap.current && !wrap.current.contains(e.target as Node)) setOpen(false);
     };
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
+    document.addEventListener('pointerdown', onDown);
+    return () => document.removeEventListener('pointerdown', onDown);
   }, [open]);
 
   return (
@@ -21,6 +21,7 @@ export function BoardSettingsMenu() {
       <button onClick={() => setOpen((o) => !o)} title="Board appearance" className={open ? 'active' : ''}>
         ⚙️
       </button>
+      {open && <div className="settings-backdrop" onClick={() => setOpen(false)} />}
       {open && (
         <div className="settings-pop">
           <div className="settings-label">Board theme</div>
@@ -33,8 +34,11 @@ export function BoardSettingsMenu() {
                 title={THEMES[k].name}
                 aria-label={THEMES[k].name}
               >
-                <span style={{ background: THEMES[k].dark }} />
-                <span style={{ background: THEMES[k].light }} />
+                <span className="swatch-colors">
+                  <span style={{ background: THEMES[k].dark }} />
+                  <span style={{ background: THEMES[k].light }} />
+                </span>
+                <span className="swatch-name">{THEMES[k].name}</span>
               </button>
             ))}
           </div>
