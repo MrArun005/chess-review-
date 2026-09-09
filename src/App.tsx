@@ -388,16 +388,8 @@ export function App() {
               Friend
             </button>
           </div>
-          <OfflineButton />
-          <BoardSettingsMenu />
-          <button
-            onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
-            title="Toggle light / dark theme"
-          >
-            {theme === 'dark' ? '☀️' : '🌙'}
-          </button>
           {mode === 'review' && result && (
-            <>
+            <div className="toolbar-group">
               <button onClick={reset}>← New game</button>
               {puzzles.length > 0 && (
                 <button
@@ -405,7 +397,7 @@ export function App() {
                   className={training ? 'active' : ''}
                   title="Replay your mistakes as puzzles"
                 >
-                  🧩 Train {puzzles.length}
+                  🧩 Train <span className="count">{puzzles.length}</span>
                 </button>
               )}
               <button
@@ -415,13 +407,33 @@ export function App() {
               >
                 🎯 Guess
               </button>
-              <button onClick={toggleMute}>{muted ? '🔇 Sound' : '🔊 Sound'}</button>
-              <button onClick={copyLink} disabled={!pgn}>
-                {copied ? '✓ Copied' : '🔗 Share'}
-              </button>
-              <button onClick={() => exportSummaryPng(result)}>🖼 Export</button>
-            </>
+            </div>
           )}
+          <div className="toolbar-group icons">
+            {mode === 'review' && result && (
+              <>
+                <button className="icon" onClick={toggleMute} title={muted ? 'Unmute sounds' : 'Mute sounds'} aria-label="Sound">
+                  {muted ? '🔇' : '🔊'}
+                </button>
+                <button className="icon" onClick={copyLink} disabled={!pgn} title="Copy a share link" aria-label="Share">
+                  {copied ? '✓' : '🔗'}
+                </button>
+                <button className="icon" onClick={() => exportSummaryPng(result)} title="Export summary image" aria-label="Export">
+                  🖼
+                </button>
+              </>
+            )}
+            <BoardSettingsMenu />
+            <button
+              className="icon"
+              onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+              title="Toggle light / dark theme"
+              aria-label="Theme"
+            >
+              {theme === 'dark' ? '☀️' : '🌙'}
+            </button>
+            <OfflineButton />
+          </div>
         </div>
       </div>
 
@@ -649,6 +661,7 @@ export function App() {
                 </div>
                 <span className="panel-engine">Stockfish 16</span>
               </div>
+              <div className="panel-body">
               <MoveDetail move={move} />
               <Summary
                 moves={result.moves}
@@ -667,6 +680,7 @@ export function App() {
                 <MoveList moves={result.moves} current={current} onSelect={goTo} />
               </div>
               <KeyMoments moves={result.moves} onSelect={goTo} />
+              </div>
               <div className="panel-foot nav nav-desktop">{navButtons}</div>
             </aside>
           </div>

@@ -1,8 +1,9 @@
 import { useMemo, useState, type ComponentProps } from 'react';
 import { Chessboard } from 'react-chessboard';
 import { Chess } from 'chess.js';
-import { CLASS_COLOR, CLASS_ICON, type MoveClass } from '../review/classify';
+import { CLASS_COLOR, type MoveClass } from '../review/classify';
 import { useBoardSettings, THEMES } from './boardSettings';
+import { ClassGlyph } from './ClassIcon';
 import { PIECE_SVG } from './pieceSvgs';
 
 type Arrows = ComponentProps<typeof Chessboard>['customArrows'];
@@ -311,7 +312,7 @@ function MoveBadge({
         fontSize: size * 0.5,
       }}
     >
-      {CLASS_ICON[cls]}
+      <ClassGlyph cls={cls} />
     </div>
   );
 }

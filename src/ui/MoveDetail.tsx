@@ -6,6 +6,16 @@ interface Props {
   move: ReviewedMove | null;
 }
 
+/** "is the Best move", "is a Great move", "is a Mistake", "is Forced" … */
+function headlineVerb(cls: string, label: string): string {
+  if (cls === 'best') return 'is the Best move';
+  if (cls === 'forced') return 'is Forced';
+  if (cls === 'book') return 'is a Book move';
+  const nouns = new Set(['inaccuracy', 'mistake', 'blunder', 'miss']);
+  const article = /^[aeiou]/i.test(label) ? 'an' : 'a';
+  return nouns.has(cls) ? `is ${article} ${label}` : `is ${article} ${label} move`;
+}
+
 /** The coach headline: "Nf3 is a Mistake", why, and what was best. */
 export function MoveDetail({ move }: Props) {
   if (!move) {
@@ -24,9 +34,8 @@ export function MoveDetail({ move }: Props) {
 
   const cls = move.classification;
   const label = CLASS_LABEL[cls];
-  const article = /^[aeiou]/i.test(label) ? 'an' : 'a';
   const isBest = move.bestSan === move.san;
-  const verb = cls === 'best' || cls === 'book' || cls === 'forced' ? `is ${label}` : `is ${article} ${label}`;
+  const verb = headlineVerb(cls, label);
 
   return (
     <div className="section detail">
