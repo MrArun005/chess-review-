@@ -80,6 +80,39 @@ npm run eval       # motif-detection metrics over eval/positions.json
 
 ---
 
+## Puzzles
+
+The **Puzzles** tab is a full tactics trainer built on ~23,000 puzzles from the
+[lichess puzzle database](https://database.lichess.org/#puzzles) (CC0), shipped
+as static JSON in `public/puzzles/` and loaded one 200-point rating band at a time.
+
+| Mode | What it does |
+|---|---|
+| Rated training | Adaptive puzzles at your rating (Glicko-2). One in four targets your weakest theme. |
+| Themes | 48 themes (mating patterns, tactics, advanced ideas, endgames), each with a one-line lesson and your performance rating. |
+| Puzzle Rush | 3 min, 5 min or survival; starts at 500 and climbs 60 per puzzle; three misses and you're out. |
+| Woodpecker | One fixed set (50/100/200) solved in cycles, tracking accuracy and time per cycle. |
+| Calculation | Only 3+ move lines, no hints, +100 above your rating. |
+| Master games | 1,500 positions from games between titled players and super-GMs. |
+| Daily puzzle | One of lichess's hand-picked daily puzzles, the same for everyone on a UTC date. |
+| Missed puzzles | Every miss returns on a spaced-repetition schedule (10 min, 1, 3, 7, 16, 35 days). |
+
+Multi-move solutions work like lichess: the opponent's setup move plays first,
+their replies play automatically, and any checkmating move is accepted. The hub
+shows your rating history, a daily training plan, and weaknesses and strengths
+per theme. Everything is stored in `localStorage`. There is no account.
+
+Rebuild the pack from a fresh dump (needs the `zstd` CLI; takes about a minute):
+
+```bash
+curl -LO https://database.lichess.org/lichess_db_puzzle.csv.zst
+node scripts/build-puzzles.mjs lichess_db_puzzle.csv.zst
+```
+
+The sampling is seeded, so the same dump always gives the same pack.
+
+---
+
 ## Deploying
 
 Any static host works — it's just files. It's configured for **Vercel**

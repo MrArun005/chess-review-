@@ -31,6 +31,7 @@ import { GamesList } from './ui/GamesList';
 import { addPuzzles, dueCards, grade, type DeckCard } from './review/deck';
 import { TrainingCard } from './ui/TrainingCard';
 import { GuessMode } from './ui/GuessMode';
+import { PuzzlesMode } from './ui/puzzles/PuzzlesMode';
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -45,7 +46,7 @@ export function App() {
   const [pgn, setPgn] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [shareFallback, setShareFallback] = useState<string | null>(null);
-  const [mode, setMode] = useState<'review' | 'play' | 'online'>('review');
+  const [mode, setMode] = useState<'review' | 'puzzles' | 'play' | 'online'>('review');
   const [analyzeFen, setAnalyzeFen] = useState<string | null>(null);
   const [training, setTraining] = useState(false);
   const [guessing, setGuessing] = useState(false);
@@ -381,6 +382,9 @@ export function App() {
             >
               Review
             </button>
+            <button className={mode === 'puzzles' ? 'active' : ''} onClick={() => setMode('puzzles')}>
+              Puzzles
+            </button>
             <button className={mode === 'play' ? 'active' : ''} onClick={() => setMode('play')}>
               Play
             </button>
@@ -445,6 +449,8 @@ export function App() {
           }}
         />
       )}
+
+      {mode === 'puzzles' && <PuzzlesMode />}
 
       {mode === 'online' && <OnlinePlay />}
 
