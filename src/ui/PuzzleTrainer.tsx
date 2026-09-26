@@ -30,7 +30,7 @@ interface Wrong {
 }
 
 /** Why a wrong try is bad, when the position makes it obvious. */
-function wrongReason(fenAfter: string, mover: 'w' | 'b', san: string, playedSan: string): string | null {
+export function wrongReason(fenAfter: string, mover: 'w' | 'b', san: string, playedSan: string): string | null {
   if (san === playedSan) return 'That is the move you played in the game.';
   try {
     const c = new Chess(fenAfter);

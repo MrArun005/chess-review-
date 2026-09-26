@@ -118,8 +118,7 @@
 .pz-dot.w { background: #f1f0ee; }
 .pz-dot.b { background: #1b1a18; }
 .pz-clock { margin-left: auto; font-size: 13px; color: var(--faint); font-variant-numeric: tabular-nums; }
-.pz-ask { margin: 6px 0 10px; color: var(--muted); font-size: 14px; }
-.pz-progress { display: flex; align-items: center; gap: 5px; }
+.pz-progress { display: flex; align-items: center; gap: 5px; margin: 10px 0 2px; }
 .pz-progress i { width: 22px; height: 6px; border-radius: 99px; background: var(--line); }
 .pz-progress i.on { background: var(--accent); }
 .pz-progress .note { margin-left: 6px; }
@@ -133,7 +132,6 @@
 .pz-tag.main { background: #f7c631; color: #2a2723; border-color: #f7c631; font-weight: 700; }
 .puzzle-line button.san { font-weight: 500; box-shadow: none; cursor: pointer; }
 .puzzle-line .san.mine { font-weight: 700; }
-.pz-next { margin-left: auto; }
 .pz-lesson { margin: 0; font-size: 14px; line-height: 1.5; }
 .pz-drill { border-left: 3px solid #f7c631; }
 .pz-rating-box .pz-big { font-size: 34px; }
@@ -180,3 +178,50 @@
   .pz-ladder { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .pz-tbar { grid-template-columns: 110px 1fr 44px; }
 }
+
+/* ---------- side-to-move banner + coach ---------- */
+.pz-board-stack { display: grid; gap: 8px; max-width: 100%; }
+.pz-banner {
+  display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-radius: var(--radius-sm);
+  font-size: 15px; box-shadow: var(--shadow-sm);
+}
+.pz-banner.w { background: #f1f0ee; color: #262421; border: 1px solid var(--line); }
+.pz-banner.b { background: #1b1a18; color: #f1f0ee; border: 1px solid var(--line); }
+.pz-banner-goal {
+  margin-left: auto; font-size: 12.5px; font-weight: 800; letter-spacing: 0.02em; padding: 3px 10px; border-radius: 99px;
+  background: var(--accent); color: var(--accent-ink);
+}
+.pz-turn .note { font-weight: 600; }
+.pz-voice { margin-left: 4px; padding: 2px 8px; font-size: 15px; line-height: 1.2; }
+
+.pz-coach { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 10px; align-items: start; margin-top: 10px; }
+.pz-coach-avatar {
+  width: 52px; height: 52px; border-radius: 50%; padding: 5px; overflow: hidden;
+  background: color-mix(in srgb, var(--accent) 22%, var(--surface-2)); border: 2px solid color-mix(in srgb, var(--accent) 60%, var(--line));
+}
+.pz-coach-avatar svg { width: 100%; height: 100%; display: block; }
+.pz-coach-bubble {
+  position: relative; padding: 10px 12px; border-radius: 12px; background: var(--bg-2); border: 1px solid var(--line-soft);
+  animation: pz-pop 0.18s ease-out;
+}
+.pz-coach-bubble::before {
+  content: ''; position: absolute; left: -7px; top: 18px; width: 12px; height: 12px; transform: rotate(45deg);
+  background: inherit; border-left: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft);
+}
+.pz-coach-bubble b { display: block; font-size: 14px; margin-bottom: 2px; }
+.pz-coach-bubble p { margin: 0; font-size: 14px; line-height: 1.45; }
+.pz-coach.good .pz-coach-bubble { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); background: color-mix(in srgb, var(--accent) 12%, var(--bg-2)); }
+.pz-coach.good .pz-coach-bubble b { color: var(--accent-strong); }
+.pz-coach.bad .pz-coach-bubble { border-color: color-mix(in srgb, var(--danger) 55%, var(--line)); background: color-mix(in srgb, var(--danger) 12%, var(--bg-2)); }
+.pz-coach.bad .pz-coach-bubble b { color: var(--danger); }
+.pz-coach.hint .pz-coach-bubble { border-color: #f7c631; background: color-mix(in srgb, #f7c631 12%, var(--bg-2)); }
+@keyframes pz-pop { from { transform: translateY(3px); opacity: 0.4; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .pz-coach-bubble { animation: none; } }
+.pz-next-big { width: 100%; margin-top: 12px; padding: 11px 14px; font-size: 16px; }
+.pz-after { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.pz-line-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-top: 14px; }
+.pz-line-head b { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--faint); }
+.pz-stepper { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-top: 10px; }
+.pz-stepper button { padding: 7px 4px; font-size: 13px; white-space: nowrap; }
+.pz-stepper button:disabled { opacity: 0.45; cursor: default; }
+.pz-keys { margin: 8px 0 0; font-size: 12px; }

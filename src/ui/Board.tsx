@@ -184,6 +184,10 @@ export function Board({
         }
         onPieceDrop={(from, to) => {
           setSelected(null);
+          // react-chessboard reports a promotion drop here as well as through
+          // onPromotionCheck. Committing now would promote to the default queen
+          // before the picker is answered, so snap back and let the picker commit.
+          if (!premoveMode && isPromotion(from, to)) return false;
           return commit(from, to);
         }}
         onSquareClick={handleSquareClick}
@@ -195,7 +199,9 @@ export function Board({
             !!piece &&
             piece[1]?.toLowerCase() === 'p' &&
             ((piece[0] === 'w' && to[1] === '8') || (piece[0] === 'b' && to[1] === '1'));
-          if (isPromo && !premoveMode) {
+          // Only ask when the promotion is actually legal from here.
+          const legal = !!board?.moves({ square: from as never, verbose: true }).some((m) => m.to === to);
+          if (isPromo && !premoveMode && legal) {
             setPendingPromo({ from, to, color: piece[0] as 'w' | 'b' });
           }
           return false; // never use the built-in dialog

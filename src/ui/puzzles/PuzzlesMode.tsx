@@ -49,7 +49,7 @@ export function PuzzlesMode() {
     case 'rated':
       return <RatedSession key={`${view.flavor}-${view.theme ?? ''}`} {...common} flavor={view.flavor} theme={view.theme} />;
     case 'daily':
-      return <DailySession {...common} />;
+      return <DailySession {...common} onContinue={() => setView({ k: 'rated', flavor: 'mix' })} />;
     case 'rush':
       return <RushSession {...common} />;
     case 'wood':

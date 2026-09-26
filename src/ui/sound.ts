@@ -139,7 +139,44 @@ function synthPromote(): void {
   tap('promoteTop', { at: 0.14 });
 }
 
+// --- puzzle feedback tones ------------------------------------------------
+// Short sine/triangle blips for right and wrong answers — deliberately unlike
+// the wooden knocks so feedback never sounds like a move.
+
+function tone(freq: number, { at = 0, dur = 0.16, type = 'sine' as OscillatorType, gain = 0.16, slideTo = 0 } = {}): void {
+  const c = audioCtx();
+  if (!c || !master || muted) return;
+  const t0 = c.currentTime + at;
+  const o = c.createOscillator();
+  const g = c.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(freq, t0);
+  if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t0 + dur);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(gain, t0 + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g);
+  g.connect(master);
+  o.start(t0);
+  o.stop(t0 + dur + 0.03);
+}
+
 export const sound = {
+  /** A correct puzzle move: a bright rising pair (G5 → D6). */
+  correct() {
+    tone(784, { at: 0.04, dur: 0.12 });
+    tone(1175, { at: 0.12, dur: 0.2 });
+  },
+  /** A wrong puzzle move: a low falling buzz. */
+  wrong() {
+    tone(233, { at: 0.03, dur: 0.24, type: 'triangle', gain: 0.2, slideTo: 170 });
+  },
+  /** Puzzle solved: a major arpeggio (E5 G5 C6). */
+  solved() {
+    tone(659, { at: 0.04, dur: 0.14 });
+    tone(784, { at: 0.14, dur: 0.14 });
+    tone(1047, { at: 0.24, dur: 0.34 });
+  },
   move() {
     if (muted) return;
     if (!playSample('move')) synthMove();

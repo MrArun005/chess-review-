@@ -77,6 +77,8 @@ export function RatedSession({ profile, mutate, onExit, flavor, theme }: Common 
   const [delta, setDelta] = useState<number | null>(null);
   const [log, setLog] = useState<{ id: string; rating: number; win: boolean }[]>([]);
   const [drill, setDrill] = useState<string | null>(null);
+  // Bumped on every pick so the board resets even if the same puzzle comes back.
+  const [round, setRound] = useState(0);
 
   const target = () => profile.g.rating + profile.difficulty + (flavor === 'calc' ? 100 : 0);
   const filter = (drillTheme: string | null): Filter | undefined => {
@@ -105,6 +107,7 @@ export function RatedSession({ profile, mutate, onExit, flavor, theme }: Common 
       const p = pick(rows, target(), seen, Math.random, filter(d)) ?? pick(rows, target(), seen, Math.random, filter(null));
       setDrill(p && d && p.themes.includes(d) ? d : null);
       setPuzzle(p);
+      setRound((r) => r + 1);
       if (!p) setError('No puzzles match here yet.');
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -149,6 +152,7 @@ export function RatedSession({ profile, mutate, onExit, flavor, theme }: Common 
 
   return (
     <Solver
+      key={round}
       puzzle={puzzle}
       onResult={onResult}
       onNext={onNext}
@@ -237,12 +241,13 @@ export function RatedSession({ profile, mutate, onExit, flavor, theme }: Common 
 
 export const utcDay = (d = new Date()) => d.toISOString().slice(0, 10);
 
-export function DailySession({ profile, mutate, onExit }: Common) {
+export function DailySession({ profile, mutate, onExit, onContinue }: Common & { onContinue: () => void }) {
   const [puzzle, setPuzzle] = useState<LPuzzle | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [delta, setDelta] = useState<number | null>(null);
   const day = utcDay();
-  const already = day in profile.daily;
+  // Fixed at mount: finishing today's attempt must not relabel it as a replay.
+  const [already] = useState(() => day in profile.daily);
 
   useEffect(() => {
     loadDaily()
@@ -265,6 +270,8 @@ export function DailySession({ profile, mutate, onExit }: Common) {
     <Solver
       puzzle={puzzle}
       onResult={onResult}
+      onNext={onContinue}
+      nextLabel="Next: rated puzzles →"
       onExit={onExit}
       showTheme={false}
       head={<span className="note">Daily puzzle · {day}</span>}
@@ -461,7 +468,7 @@ export function RushSession({ profile, mutate, onExit }: Common) {
   const timed = RUSH_MS[kind] !== null;
   return (
     <Solver
-      key={puzzle.id}
+      key={`${count.current}-${puzzle.id}`}
       puzzle={puzzle}
       rush
       hints={false}

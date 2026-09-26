@@ -3,6 +3,8 @@ import { update, rate, START } from './glicko';
 import { decode, judge, solverColor, solverMoves, fenAt, lineSan, type PackRow } from './line';
 import { pick, dailyIndex, rushTarget, seeded } from './select';
 import { primaryTheme } from './themes';
+import { goalOf } from './goal';
+import { speakSquares, spokenSan } from './speech';
 import { fresh, recordRated, dueRetries, gradeRetry, performance, themeReport } from './profile';
 
 // Real rows from the lichess puzzle database (CC0).
@@ -122,5 +124,28 @@ describe('profile', () => {
     expect(primaryTheme(['mate', 'mateIn2', 'smotheredMate', 'middlegame'])).toBe('smotheredMate');
     expect(primaryTheme(['fork', 'deflection', 'short'])).toBe('deflection');
     expect(primaryTheme(['short', 'crushing'])).toBeNull();
+  });
+});
+
+describe('coach', () => {
+  it('states the goal from the tags', () => {
+    expect(goalOf(decode(MATE2)).title).toBe('Checkmate in 2');
+    expect(goalOf(decode(LONG))).toEqual({ title: 'Win decisively', ask: 'Your opponent slipped. Punish it — 3 moves to find.' });
+    const save = decode(['s', MATE2[1], 'b6a7 b7b5', 1500, 'equality endgame']);
+    expect(goalOf(save)).toEqual({ title: 'Save the game', ask: "You're in trouble. Find the one move that holds." });
+    expect(goalOf(decode(['a', MATE2[1], 'b6a7 b7b5', 1500, 'advantage'])).title).toBe('Gain the advantage');
+  });
+
+  it('speaks SAN as words', () => {
+    expect(spokenSan('Nxe5+')).toBe('Knight takes E5, check');
+    expect(spokenSan('Rd8#')).toBe('Rook to D8, checkmate');
+    expect(spokenSan('exd5')).toBe('E pawn takes D5');
+    expect(spokenSan('e4')).toBe('Pawn to E4');
+    expect(spokenSan('e8=Q+')).toBe('Pawn to E8, promotes to a queen, check');
+    expect(spokenSan('Nbd7')).toBe('Knight B to D7');
+    expect(spokenSan('R1xd4')).toBe('Rook 1 takes D4');
+    expect(spokenSan('O-O')).toBe('Castles');
+    expect(spokenSan('O-O-O+')).toBe('Castles long, check');
+    expect(speakSquares('It leaves your queen on h7 hanging, not a4.')).toBe('It leaves your queen on H7 hanging, not A4.');
   });
 });
